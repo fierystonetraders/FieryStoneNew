@@ -1,6 +1,0 @@
-{
-  "name": "FieryStone Traders Portal",
-  "description": "High-end website, supply chain CMS, and automated CRM system for premium Granite and stone exporters.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
