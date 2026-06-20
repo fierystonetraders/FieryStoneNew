@@ -406,14 +406,7 @@ export default function CrmView({
             >
               Pipeline Desk
             </button>
-            <button
-              onClick={() => setCrmSubTab('sequences')}
-              className={`rounded px-4 py-1.5 font-semibold transition ${
-                crmSubTab === 'sequences' ? 'bg-amber-500 text-stone-950 slot' : 'text-stone-400 hover:text-stone-100'
-              }`}
-            >
-              Sequence Rules Config
-            </button>
+            
           </div>
         </div>
 
@@ -741,7 +734,7 @@ export default function CrmView({
                     </div>
 
                       {/* TWO COLUMN GRID: REMINDERS & COMMUNICATIONS logs */}
-                      <div className="grid sm:grid-cols-2 gap-6 pt-2">
+                      <div className="grid sm:grid-cols-1 gap-6 pt-2">
                         
                         {/* ACTIVE REMINDERS COLUMN */}
                         <div className="space-y-3">
@@ -805,38 +798,7 @@ export default function CrmView({
                         </div>
 
                         {/* OUTGOING MAIL COMMUNICATIONS LOG */}
-                        <div className="space-y-3">
-                          <p className="text-[10px] text-stone-500 uppercase font-mono font-bold border-b border-stone-900 pb-1 flex items-center justify-between">
-                            <span>OUTGOING TRANSACTION TRANSMISSIONS</span>
-                            <span className="text-[9px] bg-stone-950 text-stone-400 px-1 py-0.2 rounded border border-stone-850">
-                              {selectedLead.emailLogs.length} dispatched
-                            </span>
-                          </p>
-
-                          <div className="space-y-2 max-h-[224px] overflow-y-auto bg-stone-950/20 p-2.5 rounded-xl border border-stone-900">
-                            {selectedLead.emailLogs.length === 0 ? (
-                              <p className="text-[10px] text-stone-605 text-center py-4">No outbound communications sent. Simulates triggers above.</p>
-                            ) : (
-                              selectedLead.emailLogs.map((log) => {
-                                const isWelcome = log.type === 'auto-responder';
-                                return (
-                                  <div key={log.id} className="p-2.5 bg-stone-950 border border-stone-900 rounded font-sans relative">
-                                    <div className="flex justify-between items-start text-[9px] font-mono text-stone-500 border-b border-stone-900 pb-1">
-                                      <span className={isWelcome ? 'text-amber-500 font-bold' : 'text-sky-400 font-bold'}>
-                                        {log.type.toUpperCase()}
-                                      </span>
-                                      <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                                    </div>
-                                    <h5 className="text-[10.5px] font-bold text-stone-300 mt-1.5 truncate">{log.subject}</h5>
-                                    <p className="text-[9.5px] text-stone-450 line-clamp-2 mt-1 whitespace-pre-line leading-normal">
-                                      {log.body}
-                                    </p>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
+                        
 
                       </div>
 
@@ -886,83 +848,9 @@ export default function CrmView({
             </div>
           </>
         ) : (
-          /* ======================================================= */
-          /* SEQUENCE RULES CONFIG PANEL */
-          /* ======================================================= */
+          
           <div className="space-y-6">
-            <div className="p-4 rounded-xl border border-stone-800 bg-stone-900/20 text-xs font-mono">
-              <div className="flex items-center gap-2 text-amber-500 font-bold mb-2 uppercase">
-                <Clock className="h-5 w-5" />
-                <span>What are follow-up rules?</span>
-              </div>
-              <p className="text-stone-400">
-                A sequence of rules evaluated sequentially when you trigger automation for clients inside their file cards.
-                They populate and simulate outbound logs tailored perfectly to client-specific volumes and required minimum quantities custom-defined in the Supplier CMS.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              {followUpRules.map((rule) => {
-                const isAutoWel = rule.id === 'rule-welcome';
-                return (
-                  <div key={rule.id} className="rounded-xl border border-stone-800 bg-stone-950 p-5 space-y-4">
-                    <div className="flex justify-between items-center border-b border-stone-900 pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="bg-amber-500 text-stone-950 text-[10px] font-bold font-mono px-2 py-0.5 rounded">
-                          {isAutoWel ? 'IMMEDIATE WELCOME RESPONDER' : `SEQUENCE DAY ${rule.daysAfterLead} INQUIRY`}
-                        </span>
-                        <span className="text-[10px] text-stone-550 font-mono">ID: {rule.id}</span>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          onUpdateFollowUpRules(
-                            followUpRules.map(r => r.id === rule.id ? { ...r, active: !r.active } : r)
-                          );
-                        }}
-                        className={`rounded font-bold text-[8.5px] px-2 py-0.5 border ${
-                          rule.active 
-                            ? 'bg-emerald-500/15 text-emerald-450 border-emerald-500/20' 
-                            : 'bg-stone-900 text-stone-500 border-stone-800'
-                        }`}
-                      >
-                        {rule.active ? 'ACTIVE SEQUENCE' : 'MUTED SEQUENCE'}
-                      </button>
-                    </div>
-
-                    <div className="space-y-3 text-xs font-mono">
-                      <div>
-                        <label className="block text-stone-500 uppercase text-[9px] mb-1">Subject formatting tag</label>
-                        <input
-                          type="text"
-                          value={rule.subjectTemplate}
-                          onChange={(e) => {
-                            onUpdateFollowUpRules(
-                              followUpRules.map(r => r.id === rule.id ? { ...r, subjectTemplate: e.target.value } : r)
-                            );
-                          }}
-                          className="w-full bg-stone-900 border border-stone-850 rounded px-2.5 py-1 text-stone-200"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-stone-500 uppercase text-[9px] mb-1">Template body script pattern (supports [CustomerName], [ProductDetail],[Quantity], [MinQuantity])</label>
-                        <textarea
-                          rows={6}
-                          value={rule.bodyTemplate}
-                          onChange={(e) => {
-                            onUpdateFollowUpRules(
-                              followUpRules.map(r => r.id === rule.id ? { ...r, bodyTemplate: e.target.value } : r)
-                            );
-                          }}
-                          className="w-full bg-stone-900 border border-stone-850 rounded px-2.5 py-1.5 text-stone-300 leading-normal"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            
           </div>
         )}
 

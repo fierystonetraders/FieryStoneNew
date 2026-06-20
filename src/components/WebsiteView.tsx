@@ -1311,7 +1311,7 @@ export default function WebsiteView({
             {/* India Portal */}
             <div className="rounded-xl border border-stone-800 bg-stone-950 p-6 relative overflow-hidden group hover:border-amber-500/20 transition">
               <div className="absolute top-0 right-0 bg-stone-900 text-stone-400 text-[10px] uppercase tracking-wider px-3 py-1 font-mono rounded-bl border-l border-b border-stone-800 font-bold group-hover:bg-amber-500 group-hover:text-stone-950 transition">
-                India Head Quarters
+                India Head Office
               </div>
               <h4 className="text-base font-bold text-white uppercase font-sans">FieryStone Traders (IND)</h4>
               
