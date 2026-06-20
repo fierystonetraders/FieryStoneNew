@@ -169,7 +169,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
                   id="otp-code"
                   type="text"
                   required
-                  placeholder="------"
+                  placeholder="--------"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
                   className="block w-full text-center py-3.5 rounded-lg border border-amber-500/40 bg-stone-950 text-base tracking-[0.4em] font-bold text-amber-400 focus:outline-none focus:border-amber-500"
