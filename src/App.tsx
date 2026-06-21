@@ -92,25 +92,19 @@ export default function App() {
     };
   }, []);
 
-  const [globalMinQuantity, setGlobalMinQuantity] = useState<number>(() => {
-    const data = localStorage.getItem('fstone_global_min_quantity');
-    return data ? Number(data) : 500;
-  });
+  const [globalMinQuantity, setGlobalMinQuantity] = useState<number>(500);
 
-  const [privacyPolicy, setPrivacyPolicy] = useState<string>(() => {
-    const data = localStorage.getItem('fstone_privacy_policy');
-    return data || `FieryStone respects client confidentiality under state export protocols. When you submit customized slab requests via our website lead forms, we store your contact configurations, company demographics, and requested stone sizes securely in our logistics CRM database.\n\nWe under no circumstances share client logistics criteria or destination port details with unauthorized competitors or third-party marketing networks.\n\n1. Information We Log\nIncluded: Sourcing names, emails, direct phones, port configurations, and desired slab quantities. We route these statistics selectively to our Visakhapatnam, India HQ sales desk and our St. Charles, MO, USA sales queue.\n\n2. Auto-responder logs\nOur automation engine operates via server-authenticated scripts to send transactional specification confirmations. We store follow-up reminder metrics solely for sales dispatch efficiency.`;
-  });
+  const [privacyPolicy, setPrivacyPolicy] = useState<string>(
+    `FieryStone respects client confidentiality under state export protocols. When you submit customized slab requests via our website lead forms, we store your contact configurations, company demographics, and requested stone sizes securely in our logistics CRM database.\n\nWe under no circumstances share client logistics criteria or destination port details with unauthorized competitors or third-party marketing networks.\n\n1. Information We Log\nIncluded: Sourcing names, emails, direct phones, port configurations, and desired slab quantities. We route these statistics selectively to our Visakhapatnam, India HQ sales desk and our St. Charles, MO, USA sales queue.\n\n2. Auto-responder logs\nOur automation engine operates via server-authenticated scripts to send transactional specification confirmations. We store follow-up reminder metrics solely for sales dispatch efficiency.`
+  );
 
-  const [termsConditions, setTermsConditions] = useState<string>(() => {
-    const data = localStorage.getItem('fstone_terms_conditions');
-    return data || `Welcome to FieryStone. Sourcing and exporting raw mineral blocks or slice-gangsaw slabs implies acceptance of our standard container terms:\n\n1. Minimum Order Rule (CMS Bounds)\nAll items configured in our Supplier Catalog carry minimum order thresholds (ranging between 300 to 600 square feet) to absorb wood-crating and crane-handling labor overhead. Submissions below these quantities fail compliance approval inside the CRM portal.\n\n2. Shipping & Freight Port Delivery\nAll pricing values are quoted FOB (Free on Board) at Vizag Port, Chennai Port or Mundra Port. Title transfers completely once wooden crates are loaded onto designated ocean container ships. Risk pass-through is subject to international maritime terms.`;
-  });
+  const [termsConditions, setTermsConditions] = useState<string>(
+    `Welcome to FieryStone. Sourcing and exporting raw mineral blocks or slice-gangsaw slabs implies acceptance of our standard container terms:\n\n1. Minimum Order Rule (CMS Bounds)\nAll items configured in our Supplier Catalog carry minimum order thresholds (ranging between 300 to 600 square feet) to absorb wood-crating and crane-handling labor overhead. Submissions below these quantities fail compliance approval inside the CRM portal.\n\n2. Shipping & Freight Port Delivery\nAll pricing values are quoted FOB (Free on Board) at Vizag Port, Chennai Port or Mundra Port. Title transfers completely once wooden crates are loaded onto designated ocean container ships. Risk pass-through is subject to international maritime terms.`
+  );
 
-  const [exportDisclaimer, setExportDisclaimer] = useState<string>(() => {
-    const data = localStorage.getItem('fstone_export_disclaimer');
-    return data || `Please examine our standard mineral processing guidelines carefully prior to closing transactional proposals:\n\n1. Natural Mineral Variation:\nGranite, Quartzite, and Basalt are geological materials mined across deep reserves. Natural hairline cracks, quartz clusters, shade variations, and mica grouping formations are authentic details of igneous origin. Slabs will never exhibit identical, repetitive computer-designed patterns.\n\n2. Calibrated Dimensions:\nWhile gangsaw blades slice block structures at high accuracy, dimensional thickness tolerance remains standard at +/- 1.5mm.\n\n3. Port Delays:\nExport times may fluctuate based on customs queue clearance and ocean cargo space schedules at Visakhapatnam (VPT), Chennai (MAA), or Mundra (MUN) ports.`;
-  });
+  const [exportDisclaimer, setExportDisclaimer] = useState<string>(
+    `Please examine our standard mineral processing guidelines carefully prior to closing transactional proposals:\n\n1. Natural Mineral Variation:\nGranite, Quartzite, and Basalt are geological materials mined across deep reserves. Natural hairline cracks, quartz clusters, shade variations, and mica grouping formations are authentic details of igneous origin. Slabs will never exhibit identical, repetitive computer-designed patterns.\n\n2. Calibrated Dimensions:\nWhile gangsaw blades slice block structures at high accuracy, dimensional thickness tolerance remains standard at +/- 1.5mm.\n\n3. Port Delays:\nExport times may fluctuate based on customs queue clearance and ocean cargo space schedules at Visakhapatnam (VPT), Chennai (MAA), or Mundra (MUN) ports.`
+  );
 
   const handleUpdatePrivacyPolicy = (val: string) => {
     setPrivacyPolicy(val);
@@ -119,122 +113,69 @@ export default function App() {
 
   const handleUpdateTermsConditions = (val: string) => {
     setTermsConditions(val);
-    localStorage.setItem('fstone_terms_conditions', val);
   };
 
   const handleUpdateExportDisclaimer = (val: string) => {
     setExportDisclaimer(val);
-    localStorage.setItem('fstone_export_disclaimer', val);
   };
 
-  const [instagramUrl, setInstagramUrl] = useState<string>(() => {
-    return localStorage.getItem('fstone_instagram_url') || 'https://instagram.com/fierystone_traders';
-  });
+  const [instagramUrl, setInstagramUrl] = useState<string>('https://instagram.com/fierystone_traders');
 
-  const [logoUrl, setLogoUrl] = useState<string>(() => {
-    return localStorage.getItem('fstone_logo_url') || '';
-  });
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
-  const [logoText, setLogoText] = useState<string>(() => {
-    return localStorage.getItem('fstone_logo_text') || 'FieryStone';
-  });
+  const [logoText, setLogoText] = useState<string>('FieryStone');
 
   const handleUpdateLogoUrl = (val: string) => {
     setLogoUrl(val);
-    localStorage.setItem('fstone_logo_url', val);
   };
 
   const handleUpdateLogoText = (val: string) => {
     setLogoText(val);
-    localStorage.setItem('fstone_logo_text', val);
   };
 
-  const [facebookUrl, setFacebookUrl] = useState<string>(() => {
-    return localStorage.getItem('fstone_facebook_url') || 'https://facebook.com/fierystone_traders';
-  });
+  const [facebookUrl, setFacebookUrl] = useState<string>('https://facebook.com/fierystone_traders');
 
-  const [youtubeUrl, setYoutubeUrl] = useState<string>(() => {
-    return localStorage.getItem('fstone_youtube_url') || 'https://youtube.com/c/fierystone_traders';
-  });
+  const [youtubeUrl, setYoutubeUrl] = useState<string>('https://youtube.com/c/fierystone_traders');
 
-  const [linkedinUrl, setLinkedinUrl] = useState<string>(() => {
-    return localStorage.getItem('fstone_linkedin_url') || 'https://linkedin.com/company/fierystone_traders';
-  });
+  const [linkedinUrl, setLinkedinUrl] = useState<string>('https://linkedin.com/company/fierystone_traders');
 
   const handleUpdateInstagramUrl = (val: string) => {
     setInstagramUrl(val);
-    localStorage.setItem('fstone_instagram_url', val);
   };
 
   const handleUpdateFacebookUrl = (val: string) => {
     setFacebookUrl(val);
-    localStorage.setItem('fstone_facebook_url', val);
   };
 
   const handleUpdateYoutubeUrl = (val: string) => {
     setYoutubeUrl(val);
-    localStorage.setItem('fstone_youtube_url', val);
   };
 
   const handleUpdateLinkedinUrl = (val: string) => {
     setLinkedinUrl(val);
-    localStorage.setItem('fstone_linkedin_url', val);
   };
 
-  const [products, setProducts] = useState<Product[]>(() => {
-    const data = localStorage.getItem('fstone_products');
-    return data ? JSON.parse(data) : initialProducts;
-  });
+  const [products, setProducts] = useState<Product[]>(initialProducts);
 
-  const [slabSizes, setSlabSizes] = useState<SlabSize[]>(() => {
-    const data = localStorage.getItem('fstone_slab_sizes');
-    return data ? JSON.parse(data) : initialSlabSizes;
-  });
+  const [slabSizes, setSlabSizes] = useState<SlabSize[]>(initialSlabSizes);
 
-  const [graniteTypes, setGraniteTypes] = useState<GraniteType[]>(() => {
-    const data = localStorage.getItem('fstone_granite_types');
-    return data ? JSON.parse(data) : initialGraniteTypes;
-  });
+  const [graniteTypes, setGraniteTypes] = useState<GraniteType[]>(initialGraniteTypes);
 
-  const [thicknesses, setThicknesses] = useState<Thickness[]>(() => {
-    const data = localStorage.getItem('fstone_thicknesses');
-    return data ? JSON.parse(data) : initialThicknesses;
-  });
+  const [thicknesses, setThicknesses] = useState<Thickness[]>(initialThicknesses);
 
-  const [finishTypes, setFinishTypes] = useState<FinishType[]>(() => {
-    const data = localStorage.getItem('fstone_finish_types');
-    return data ? JSON.parse(data) : initialFinishTypes;
-  });
+  const [finishTypes, setFinishTypes] = useState<FinishType[]>(initialFinishTypes);
 
-  const [fobPorts, setFobPorts] = useState<FobPort[]>(() => {
-    const data = localStorage.getItem('fstone_fob_ports');
-    return data ? JSON.parse(data) : initialFobPorts;
-  });
+  const [fobPorts, setFobPorts] = useState<FobPort[]>(initialFobPorts);
 
-  const [locationsServing, setLocationsServing] = useState<LocationServing[]>(() => {
-    const data = localStorage.getItem('fstone_locations_serving');
-    return data ? JSON.parse(data) : initialLocationsServing;
-  });
+  const [locationsServing, setLocationsServing] = useState<LocationServing[]>(initialLocationsServing);
 
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const data = localStorage.getItem('fstone_leads');
-    return data ? JSON.parse(data) : initialLeads;
-  });
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
 
-  const [followUpRules, setFollowUpRules] = useState<FollowUpSequenceRule[]>(() => {
-    const data = localStorage.getItem('fstone_followup_rules');
-    return data ? JSON.parse(data) : initialFollowUpRules;
-  });
+  const [followUpRules, setFollowUpRules] = useState<FollowUpSequenceRule[]>(initialFollowUpRules);
 
-  const [leadStages, setLeadStages] = useState<LeadStage[]>(() => {
-    const data = localStorage.getItem('fstone_lead_stages');
-    return data ? JSON.parse(data) : initialLeadStages;
-  });
+  const [leadStages, setLeadStages] = useState<LeadStage[]>(initialLeadStages);
 
-  const [wonProcessSteps, setWonProcessSteps] = useState<WonProcessStep[]>(() => {
-    const data = localStorage.getItem('fstone_won_process_steps');
-    return data ? JSON.parse(data) : initialWonProcessSteps;
-  });
+  const [wonProcessSteps, setWonProcessSteps] = useState<WonProcessStep[]>(initialWonProcessSteps);
 
   // --- SUPABASE SYNCHRONIZATION ENGINES ---
   const prevProductsRef = useRef<Product[]>([]);
@@ -254,7 +195,6 @@ export default function App() {
             if (dbProds && dbProds.length > 0) {
               setProducts(dbProds);
               prevProductsRef.current = dbProds;
-              localStorage.setItem('fstone_products', JSON.stringify(dbProds));
             } else if (dbProds && dbProds.length === 0 && products.length > 0) {
               // Remote table exists but is empty, seed it with local state
               console.log('Products table empty. Seeding with active dataset...');
@@ -268,28 +208,9 @@ export default function App() {
           if (conn.leadsTableExists) {
             const dbLeads = await dbFetchLeads();
             if (dbLeads) {
-              const localLeadsData = localStorage.getItem('fstone_leads');
-              const currentLocalLeads: Lead[] = localLeadsData ? JSON.parse(localLeadsData) : [];
-              
-              // Identify any local offline submissions not yet synced inside Supabase
-              const leadsToPush = currentLocalLeads.filter(
-                localLead => !dbLeads.some(dbLead => dbLead.id === localLead.id)
-              );
-              
-              if (leadsToPush.length > 0) {
-                console.log(`Pushing ${leadsToPush.length} offline/local leads to Supabase...`);
-                for (const leadToPush of leadsToPush) {
-                  await dbSaveLead(leadToPush);
-                }
-              }
-              
-              // Unified merged set of leads without wiping the administrator logs or submissions
-              const unifiedLeads = [...leadsToPush, ...dbLeads];
-              unifiedLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-              
-              setLeads(unifiedLeads);
-              prevLeadsRef.current = unifiedLeads;
-              localStorage.setItem('fstone_leads', JSON.stringify(unifiedLeads));
+              const sorted = [...dbLeads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              setLeads(sorted);
+              prevLeadsRef.current = sorted;
             }
           }
 
@@ -362,7 +283,6 @@ export default function App() {
               const hasChanged = JSON.stringify(prevLeads) !== JSON.stringify(sorted);
               if (hasChanged) {
                 prevLeadsRef.current = sorted;
-                localStorage.setItem('fstone_leads', JSON.stringify(sorted));
                 return sorted;
               }
               return prevLeads;
@@ -502,54 +422,7 @@ export default function App() {
     logoText
   ]);
 
-  // Sync to local storage when state objects change (separately to bypass coupling)
-  useEffect(() => {
-    localStorage.setItem('fstone_products', JSON.stringify(products));
-  }, [products]);
 
-  useEffect(() => {
-    localStorage.setItem('fstone_slab_sizes', JSON.stringify(slabSizes));
-  }, [slabSizes]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_granite_types', JSON.stringify(graniteTypes));
-  }, [graniteTypes]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_thicknesses', JSON.stringify(thicknesses));
-  }, [thicknesses]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_finish_types', JSON.stringify(finishTypes));
-  }, [finishTypes]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_fob_ports', JSON.stringify(fobPorts));
-  }, [fobPorts]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_locations_serving', JSON.stringify(locationsServing));
-  }, [locationsServing]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_leads', JSON.stringify(leads));
-  }, [leads]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_followup_rules', JSON.stringify(followUpRules));
-  }, [followUpRules]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_lead_stages', JSON.stringify(leadStages));
-  }, [leadStages]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_won_process_steps', JSON.stringify(wonProcessSteps));
-  }, [wonProcessSteps]);
-
-  useEffect(() => {
-    localStorage.setItem('fstone_global_min_quantity', String(globalMinQuantity));
-  }, [globalMinQuantity]);
 
   // Lead Generation form pipeline connection (Triggered from Public lead form)
   const handleAddNewLead = (newLeadData: Omit<Lead, 'id' | 'createdAt' | 'history' | 'reminders' | 'emailLogs'>) => {
