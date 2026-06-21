@@ -13,7 +13,8 @@ import {
   FobPort,
   LocationServing,
   LeadStage,
-  WonProcessStep
+  WonProcessStep,
+  Lead
 } from '../types';
 import {
   Plus,
@@ -34,6 +35,7 @@ import {
   Anchor,
   Share2
 } from 'lucide-react';
+import DatabaseTabContent from './DatabaseTabContent';
 
 interface CmsViewProps {
   products: Product[];
@@ -74,6 +76,8 @@ interface CmsViewProps {
   onUpdateLogoUrl?: (val: string) => void;
   logoText?: string;
   onUpdateLogoText?: (val: string) => void;
+  leads?: Lead[];
+  onUpdateLeads?: (leads: Lead[]) => void;
 }
 
 const PREMIUM_STONE_IMAGES = [
@@ -122,10 +126,12 @@ export default function CmsView({
   logoUrl = '',
   onUpdateLogoUrl,
   logoText = 'FieryStone',
-  onUpdateLogoText
+  onUpdateLogoText,
+  leads = [],
+  onUpdateLeads
 }: CmsViewProps) {
-  // Navigation tabs (Products CMS, Master Lists CMS, or Metrics & Quick Links CMS)
-  const [cmsTab, setCmsTab] = useState<'products' | 'masters' | 'metrics'>('products');
+  // Navigation tabs (Products CMS, Master Lists CMS, Metrics, or Supabase connection syncing)
+  const [cmsTab, setCmsTab] = useState<'products' | 'masters' | 'metrics' | 'database'>('products');
   // Sub-tabs inside Masters CMS
   const [masterSubTab, setMasterSubTab] = useState<'sizes' | 'types' | 'thicknesses' | 'finishes' | 'ports' | 'locations' | 'sourcing'>('sizes');
 
@@ -366,6 +372,14 @@ export default function CmsView({
               }`}
             >
               Others & Quick Links
+            </button>
+            <button
+              onClick={() => setCmsTab('database')}
+              className={`rounded px-4 py-1.5 font-semibold transition ${
+                cmsTab === 'database' ? 'bg-amber-500 text-stone-950 shadow' : 'text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              Supabase Database
             </button>
           </div>
         </div>
@@ -1500,6 +1514,33 @@ export default function CmsView({
 
             </div>
           </div>
+        )}
+
+        {cmsTab === 'database' && (
+          <DatabaseTabContent
+            products={products}
+            leads={leads}
+            slabSizes={slabSizes}
+            graniteTypes={graniteTypes}
+            thicknesses={thicknesses}
+            finishTypes={finishTypes}
+            fobPorts={fobPorts}
+            locationsServing={locationsServing}
+            leadStages={leadStages}
+            wonProcessSteps={wonProcessSteps}
+            privacyPolicy={privacyPolicy}
+            termsConditions={termsConditions}
+            exportDisclaimer={exportDisclaimer}
+            instagramUrl={instagramUrl}
+            facebookUrl={facebookUrl}
+            youtubeUrl={youtubeUrl}
+            linkedinUrl={linkedinUrl}
+            logoUrl={logoUrl}
+            logoText={logoText}
+            globalMinQuantity={globalMinQuantity}
+            onUpdateProducts={onUpdateProducts}
+            onUpdateLeads={onUpdateLeads}
+          />
         )}
 
       </div>

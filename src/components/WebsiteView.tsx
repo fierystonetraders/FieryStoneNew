@@ -122,7 +122,7 @@ export default function WebsiteView({
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactNotes, setContactNotes] = useState('');
-  const [contactProductChoice, setContactProductChoice] = useState('General Inquiry');
+  const [contactProductChoice, setContactProductChoice] = useState('General Enquiry');
   const [contactSuccess, setContactSuccess] = useState(false);
 
   // Legal popup states
@@ -289,7 +289,6 @@ export default function WebsiteView({
     }
 
     const selectedReason = contactProductChoice || 'General Inquiry';
-    const associatedProduct = activeProducts.find(p => p.id === selectedReason || p.title === selectedReason);
     
     onAddLead({
       customerName: contactName,
@@ -297,11 +296,11 @@ export default function WebsiteView({
       customerPhone: contactPhone,
       customerCompany: 'Direct Web Inquiry',
       customerCountry: 'India',
-      productId: associatedProduct ? associatedProduct.id : selectedReason,
-      selectedSlabSizeId: associatedProduct ? (associatedProduct.slabSizeIds[0] || 'size-standard') : 'size-standard',
-      selectedThicknessId: associatedProduct ? (associatedProduct.thicknessIds[0] || 'thick-20') : 'thick-20',
-      selectedFinishTypeId: associatedProduct ? (associatedProduct.finishTypeIds[0] || 'fin-mirror') : 'fin-mirror',
-      quantity: associatedProduct ? (associatedProduct.minQuantity || 500) : 500,
+      productId: selectedReason,
+      selectedSlabSizeId: 'size-standard',
+      selectedThicknessId: 'thick-20',
+      selectedFinishTypeId: 'fin-mirror',
+      quantity: 500,
       notes: contactNotes || `Direct contact form submission. Reason: ${selectedReason}`,
       status: 'New'
     });
@@ -1214,7 +1213,7 @@ export default function WebsiteView({
                       id="btn-bulk-submit"
                       className="w-full rounded bg-amber-500 hover:bg-amber-450 text-stone-950 font-bold py-3 uppercase tracking-wider text-xs transition cursor-pointer border-none text-center"
                     >
-                      Transmit Integrated Bulk quotation list
+                      Submit Bulk Order
                     </button>
                   </form>
                 )}
@@ -1311,7 +1310,7 @@ export default function WebsiteView({
             {/* India Portal */}
             <div className="rounded-xl border border-stone-800 bg-stone-950 p-6 relative overflow-hidden group hover:border-amber-500/20 transition">
               <div className="absolute top-0 right-0 bg-stone-900 text-stone-400 text-[10px] uppercase tracking-wider px-3 py-1 font-mono rounded-bl border-l border-b border-stone-800 font-bold group-hover:bg-amber-500 group-hover:text-stone-950 transition">
-                India Head Office
+                Head office
               </div>
               <h4 className="text-base font-bold text-white uppercase font-sans">FieryStone Traders (IND)</h4>
               
@@ -1416,17 +1415,14 @@ export default function WebsiteView({
                     />
                   </div>
                   <div>
-                    <label className="block text-stone-400 uppercase text-[9px] mb-1 font-bold">Reason</label>
+                    <label className="block text-stone-400 uppercase text-[9px] mb-1 font-bold">Inquiry Topic</label>
                     <select
                       value={contactProductChoice}
                       onChange={(e) => setContactProductChoice(e.target.value)}
                       className="w-full bg-stone-950 border border-stone-800 focus:border-amber-500 rounded px-3 py-2 text-stone-200"
                     >
-                      <option value="General Inquiry">General Inquiry</option>
+                      <option value="General Enquiry">General Enquiry</option>
                       <option value="Business Collaboration">Business Collaboration</option>
-                      {activeProducts.map((p) => (
-                        <option key={p.id} value={p.title}>{p.title}</option>
-                      ))}
                     </select>
                   </div>
                 </div>

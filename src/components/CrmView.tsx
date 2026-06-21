@@ -99,11 +99,26 @@ export default function CrmView({
   const [emailComposerBody, setEmailComposerBody] = useState('');
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   
-  // Follow Up Rules Config tab
-  const [crmSubTab, setCrmSubTab] = useState<'pipeline' | 'sequences'>('pipeline');
+  // Follow Up Rules Config tab (Deprecated or defaulted to pipeline)
+  const [crmSubTab/*, setCrmSubTab*/] = useState<'pipeline' | 'sequences'>('pipeline');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'products' | 'bulk' | 'general'>('all');
 
   // Filtered Leads
   const filteredLeads = leads.filter((l) => {
+    // 1. Filter by inquiry type/category
+    if (categoryFilter === 'products') {
+      const isProductEnquiry = products.some(p => p.id === l.productId || p.title === l.productId) && (!l.items || l.items.length === 0);
+      if (!isProductEnquiry) return false;
+    } else if (categoryFilter === 'bulk') {
+      const isBulkEnquiry = l.items && l.items.length > 0;
+      if (!isBulkEnquiry) return false;
+    } else if (categoryFilter === 'general') {
+      const isProductEnquiry = products.some(p => p.id === l.productId || p.title === l.productId) && (!l.items || l.items.length === 0);
+      const isBulkEnquiry = l.items && l.items.length > 0;
+      if (isProductEnquiry || isBulkEnquiry) return false;
+    }
+
+    // 2. Filter by pipeline status
     if (statusFilter === 'all') return true;
     return l.status === statusFilter;
   });
@@ -394,24 +409,10 @@ export default function CrmView({
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-stone-900 pb-6 mb-8 gap-4">
           <div>
             <h2 className="text-2xl font-black text-white tracking-wide uppercase">CRM Panel</h2>
-            <p className="text-xs text-stone-500 mt-1">Direct pipeline routing, CRM logs, and email follow-up automation sequencing rules.</p>
-          </div>
-
-          <div className="flex rounded-lg bg-stone-900 p-1 border border-stone-800 text-xs font-sans">
-            <button
-              onClick={() => setCrmSubTab('pipeline')}
-              className={`rounded px-4 py-1.5 font-semibold transition ${
-                crmSubTab === 'pipeline' ? 'bg-amber-500 text-stone-950 slot' : 'text-stone-400 hover:text-stone-100'
-              }`}
-            >
-              Pipeline Desk
-            </button>
-            
+            <p className="text-xs text-stone-500 mt-1">Direct pipeline routing and separate channels for product, bulk custom orders, and general enquiries.</p>
           </div>
         </div>
 
-        {crmSubTab === 'pipeline' ? (
-          <>
             {/* PIPELINE KANBAN/METRICS DISPLAY */}
             <div className="flex flex-wrap items-stretch justify-start gap-4 mb-8">
               <div className="flex-1 min-w-[140px] rounded-xl border border-stone-800 bg-stone-900/30 p-4 text-center">
@@ -463,6 +464,60 @@ export default function CrmView({
               
               {/* PANEL 1: CLIENT CARDS LIST */}
               <div className={`lg:col-span-1 space-y-4 ${mobileActiveMode === 'list' ? 'block' : 'hidden lg:block'}`}>
+                {/* Categorized Inquiry Tabs */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-stone-500 uppercase font-mono tracking-wider">Separate CRM Queues</span>
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-stone-900 border border-stone-800 rounded-lg text-center text-[10px] font-mono font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('all')}
+                      className={`rounded py-1.5 transition cursor-pointer select-none ${
+                        categoryFilter === 'all' 
+                          ? 'bg-amber-500 text-stone-950 shadow font-extrabold' 
+                          : 'text-stone-400 hover:text-stone-100'
+                      }`}
+                    >
+                      All ({leads.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('products')}
+                      className={`rounded py-1.5 transition cursor-pointer select-none ${
+                        categoryFilter === 'products' 
+                          ? 'bg-amber-500 text-stone-950 shadow font-extrabold' 
+                          : 'text-stone-400 hover:text-stone-100'
+                      }`}
+                      title="Direct Product Enquiries"
+                    >
+                      Prods ({leads.filter(l => products.some(p => p.id === l.productId || p.title === l.productId) && (!l.items || l.items.length === 0)).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('bulk')}
+                      className={`rounded py-1.5 transition cursor-pointer select-none ${
+                        categoryFilter === 'bulk' 
+                          ? 'bg-amber-500 text-stone-950 shadow font-extrabold' 
+                          : 'text-stone-400 hover:text-stone-100'
+                      }`}
+                      title="Bulk Custom Orders"
+                    >
+                      Bulk ({leads.filter(l => l.items && l.items.length > 0).length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryFilter('general')}
+                      className={`rounded py-1.5 transition cursor-pointer select-none ${
+                        categoryFilter === 'general' 
+                          ? 'bg-amber-500 text-stone-950 shadow font-extrabold' 
+                          : 'text-stone-400 hover:text-stone-100'
+                      }`}
+                      title="General Inquiries"
+                    >
+                      Gen ({leads.filter(l => !l.items && !products.some(p => p.id === l.productId || p.title === l.productId)).length})
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest font-mono">Inquiry Cards</h3>
 
@@ -640,6 +695,19 @@ export default function CrmView({
                               <strong className="text-amber-500 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">{selectedLead.items.length} granite styles</strong>
                             </div>
                           </div>
+                        ) : !products.some(p => p.id === selectedLead.productId) ? (
+                          <div className="space-y-2 py-1 font-mono tracking-tight text-xs leading-normal">
+                            <div className="flex items-center gap-2.5">
+                              <Briefcase className="h-3.5 w-3.5 text-stone-550 flex-shrink-0" />
+                              <span className="text-stone-200 font-semibold">{selectedLead.productId}</span>
+                            </div>
+                            <div className="text-[11px] text-stone-500 italic mt-1 font-sans">
+                              Not Applicable (General Sourcing Inquiry)
+                            </div>
+                            <p className="text-[10px] text-stone-500 leading-normal font-sans pt-1">
+                              This submission was placed via the general contact form. Physical material specifications (size details, thickness metrics, or finishes) are hidden as no specific item was selected.
+                            </p>
+                          </div>
                         ) : (
                           <>
                             <div className="flex items-center gap-2.5">
@@ -733,8 +801,8 @@ export default function CrmView({
                       </div>
                     </div>
 
-                      {/* TWO COLUMN GRID: REMINDERS & COMMUNICATIONS logs */}
-                      <div className="grid sm:grid-cols-1 gap-6 pt-2">
+                      {/* LEADS REMINDERS SYSTEM */}
+                      <div className="pt-2">
                         
                         {/* ACTIVE REMINDERS COLUMN */}
                         <div className="space-y-3">
@@ -797,9 +865,6 @@ export default function CrmView({
                           </form>
                         </div>
 
-                        {/* OUTGOING MAIL COMMUNICATIONS LOG */}
-                        
-
                       </div>
 
                       {/* DETAILED REGISTRY HISTORY TRACK */}
@@ -846,13 +911,6 @@ export default function CrmView({
               </div>
 
             </div>
-          </>
-        ) : (
-          
-          <div className="space-y-6">
-            
-          </div>
-        )}
 
       </div>
     </div>

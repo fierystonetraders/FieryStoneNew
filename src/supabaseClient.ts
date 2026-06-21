@@ -2,35 +2,42 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Global variable attached to the window object or module scope to guarantee uniqueness
-let globalSupabaseInstance: SupabaseClient | null = null;
+let supabaseInstance: SupabaseClient | null = null;
 
-export function getSupabase(): SupabaseClient {
-  // If an instance already exists anywhere in memory, return it instantly
-  if (globalSupabaseInstance) {
-    return globalSupabaseInstance;
+/**
+ * Retrieve the Supabase Client lazily.
+ * This prevents application crashes on startup if environment keys are not configured yet,
+ * providing the user clear feedback instead of an operational failure.
+ */
+export function getSupabase(): SupabaseClient | null {
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Supabase Client configuration error: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in your .env file.'
-    );
+    return null;
   }
 
-  // Create the instance exactly ONCE
-  globalSupabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
-  });
-
-  return globalSupabaseInstance;
+  try {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    return supabaseInstance;
+  } catch (err) {
+    console.error('Failed to initialize Supabase client:', err);
+    return null;
+  }
 }
 
-// Keep a fallback matching export if other old components still look for raw variable bindings
-export const supabase = getSupabase();
+/**
+ * Standard Supabase client instance using conditional fallback to prevent crash.
+ */
+export const supabase = (() => {
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  if (!url || !key) {
+    return null as unknown as SupabaseClient;
+  }
+  return createClient(url, key);
+})();

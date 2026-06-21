@@ -3,12 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import WebsiteView from './components/WebsiteView';
 import CmsView from './components/CmsView';
 import CrmView from './components/CrmView';
 import AdminLogin from './components/AdminLogin';
+import {
+  checkSupabaseConnection,
+  dbFetchProducts,
+  dbFetchLeads,
+  dbFetchSetting,
+  dbSaveProduct,
+  dbSaveLead,
+  dbSaveSetting,
+  dbDeleteProduct,
+  dbDeleteLead
+} from './supabaseService';
 import {
   initialSlabSizes,
   initialGraniteTypes,
@@ -225,12 +236,271 @@ export default function App() {
     return data ? JSON.parse(data) : initialWonProcessSteps;
   });
 
-  // Floating live-feed notifications triggers
-  const [toastNotification, setToastNotification] = useState<{
-    id: string;
-    title: string;
-    message: string;
-  } | null>(null);
+  // --- SUPABASE SYNCHRONIZATION ENGINES ---
+  const prevProductsRef = useRef<Product[]>([]);
+  const prevLeadsRef = useRef<Lead[]>([]);
+  const isInitialLoadExecuted = useRef<boolean>(false);
+
+  // Initial Load from Supabase (runs on mount)
+  useEffect(() => {
+    const initSupabaseData = async () => {
+      try {
+        const conn = await checkSupabaseConnection();
+        if (conn.success) {
+          console.log('Supabase connection verified. Loading live cloud states...');
+          
+          if (conn.productsTableExists) {
+            const dbProds = await dbFetchProducts();
+            if (dbProds && dbProds.length > 0) {
+              setProducts(dbProds);
+              prevProductsRef.current = dbProds;
+              localStorage.setItem('fstone_products', JSON.stringify(dbProds));
+            } else if (dbProds && dbProds.length === 0 && products.length > 0) {
+              // Remote table exists but is empty, seed it with local state
+              console.log('Products table empty. Seeding with active dataset...');
+              for (const p of products) {
+                await dbSaveProduct(p);
+              }
+              prevProductsRef.current = products;
+            }
+          }
+
+          if (conn.leadsTableExists) {
+            const dbLeads = await dbFetchLeads();
+            if (dbLeads) {
+              const localLeadsData = localStorage.getItem('fstone_leads');
+              const currentLocalLeads: Lead[] = localLeadsData ? JSON.parse(localLeadsData) : [];
+              
+              // Identify any local offline submissions not yet synced inside Supabase
+              const leadsToPush = currentLocalLeads.filter(
+                localLead => !dbLeads.some(dbLead => dbLead.id === localLead.id)
+              );
+              
+              if (leadsToPush.length > 0) {
+                console.log(`Pushing ${leadsToPush.length} offline/local leads to Supabase...`);
+                for (const leadToPush of leadsToPush) {
+                  await dbSaveLead(leadToPush);
+                }
+              }
+              
+              // Unified merged set of leads without wiping the administrator logs or submissions
+              const unifiedLeads = [...leadsToPush, ...dbLeads];
+              unifiedLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              
+              setLeads(unifiedLeads);
+              prevLeadsRef.current = unifiedLeads;
+              localStorage.setItem('fstone_leads', JSON.stringify(unifiedLeads));
+            }
+          }
+
+          if (conn.settingsTableExists) {
+            const sz = await dbFetchSetting<SlabSize[] | null>('fstone_slab_sizes', null);
+            if (sz) setSlabSizes(sz);
+
+            const gt = await dbFetchSetting<GraniteType[] | null>('fstone_granite_types', null);
+            if (gt) setGraniteTypes(gt);
+
+            const th = await dbFetchSetting<Thickness[] | null>('fstone_thicknesses', null);
+            if (th) setThicknesses(th);
+
+            const ft = await dbFetchSetting<FinishType[] | null>('fstone_finish_types', null);
+            if (ft) setFinishTypes(ft);
+
+            const fp = await dbFetchSetting<FobPort[] | null>('fstone_fob_ports', null);
+            if (fp) setFobPorts(fp);
+
+            const ls = await dbFetchSetting<LocationServing[] | null>('fstone_locations_serving', null);
+            if (ls) setLocationsServing(ls);
+
+            const lstages = await dbFetchSetting<LeadStage[] | null>('fstone_lead_stages', null);
+            if (lstages) setLeadStages(lstages);
+
+            const wps = await dbFetchSetting<WonProcessStep[] | null>('fstone_won_process_steps', null);
+            if (wps) setWonProcessSteps(wps);
+
+            const fr = await dbFetchSetting<FollowUpSequenceRule[] | null>('fstone_followup_rules', null);
+            if (fr) setFollowUpRules(fr);
+
+            const gsettings = await dbFetchSetting<any>('fstone_global_settings', null);
+            if (gsettings) {
+              if (gsettings.globalMinQuantity !== undefined) setGlobalMinQuantity(gsettings.globalMinQuantity);
+              if (gsettings.privacyPolicy !== undefined) setPrivacyPolicy(gsettings.privacyPolicy);
+              if (gsettings.termsConditions !== undefined) setTermsConditions(gsettings.termsConditions);
+              if (gsettings.exportDisclaimer !== undefined) setExportDisclaimer(gsettings.exportDisclaimer);
+              if (gsettings.instagramUrl !== undefined) setInstagramUrl(gsettings.instagramUrl);
+              if (gsettings.facebookUrl !== undefined) setFacebookUrl(gsettings.facebookUrl);
+              if (gsettings.youtubeUrl !== undefined) setYoutubeUrl(gsettings.youtubeUrl);
+              if (gsettings.linkedinUrl !== undefined) setLinkedinUrl(gsettings.linkedinUrl);
+              if (gsettings.logoUrl !== undefined) setLogoUrl(gsettings.logoUrl);
+              if (gsettings.logoText !== undefined) setLogoText(gsettings.logoText);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Silent database exception handled:', err);
+      } finally {
+        isInitialLoadExecuted.current = true;
+      }
+    };
+    initSupabaseData();
+  }, []);
+
+  // Poll for new leads/updates from Supabase periodically to ensure Admin sees new submissions
+  useEffect(() => {
+    let interval: number | null = null;
+    
+    const pollDatabase = async () => {
+      try {
+        const conn = await checkSupabaseConnection();
+        if (conn.success && conn.leadsTableExists) {
+          const dbLeads = await dbFetchLeads();
+          if (dbLeads) {
+            const sorted = dbLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            
+            setLeads(prevLeads => {
+              // Compare if the lists have different contents
+              const hasChanged = JSON.stringify(prevLeads) !== JSON.stringify(sorted);
+              if (hasChanged) {
+                prevLeadsRef.current = sorted;
+                localStorage.setItem('fstone_leads', JSON.stringify(sorted));
+                return sorted;
+              }
+              return prevLeads;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Silent database poll exception handled:', err);
+      }
+    };
+
+    if (isInitialLoadExecuted.current) {
+      interval = window.setInterval(pollDatabase, 15000); // 15 seconds polling
+    }
+
+    return () => {
+      if (interval) window.clearInterval(interval);
+    };
+  }, [isInitialLoadExecuted.current]);
+
+  // Sync products update to Supabase
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    const syncProducts = async () => {
+      const prev = prevProductsRef.current;
+      // Check deleted
+      for (const p of prev) {
+        if (!products.some(c => c.id === p.id)) {
+          await dbDeleteProduct(p.id);
+        }
+      }
+      // Check updated or created
+      for (const p of products) {
+        const item = prev.find(c => c.id === p.id);
+        if (!item || JSON.stringify(item) !== JSON.stringify(p)) {
+          await dbSaveProduct(p);
+        }
+      }
+      prevProductsRef.current = products;
+    };
+    syncProducts();
+  }, [products]);
+
+  // Sync leads update to Supabase
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    const syncLeads = async () => {
+      const prev = prevLeadsRef.current;
+      // Check deleted
+      for (const l of prev) {
+        if (!leads.some(c => c.id === l.id)) {
+          await dbDeleteLead(l.id);
+        }
+      }
+      // Check updated or created
+      for (const l of leads) {
+        const item = prev.find(c => c.id === l.id);
+        if (!item || JSON.stringify(item) !== JSON.stringify(l)) {
+          await dbSaveLead(l);
+        }
+      }
+      prevLeadsRef.current = leads;
+    };
+    syncLeads();
+  }, [leads]);
+
+  // Sync settings when configurations change
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_slab_sizes', slabSizes);
+  }, [slabSizes]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_granite_types', graniteTypes);
+  }, [graniteTypes]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_thicknesses', thicknesses);
+  }, [thicknesses]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_finish_types', finishTypes);
+  }, [finishTypes]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_fob_ports', fobPorts);
+  }, [fobPorts]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_locations_serving', locationsServing);
+  }, [locationsServing]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_lead_stages', leadStages);
+  }, [leadStages]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_won_process_steps', wonProcessSteps);
+  }, [wonProcessSteps]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_followup_rules', followUpRules);
+  }, [followUpRules]);
+
+  useEffect(() => {
+    if (!isInitialLoadExecuted.current) return;
+    dbSaveSetting('fstone_global_settings', {
+      globalMinQuantity,
+      privacyPolicy,
+      termsConditions,
+      exportDisclaimer,
+      instagramUrl,
+      facebookUrl,
+      youtubeUrl,
+      linkedinUrl,
+      logoUrl,
+      logoText
+    });
+  }, [
+    globalMinQuantity,
+    privacyPolicy,
+    termsConditions,
+    exportDisclaimer,
+    instagramUrl,
+    facebookUrl,
+    youtubeUrl,
+    linkedinUrl,
+    logoUrl,
+    logoText
+  ]);
 
   // Sync to local storage when state objects change (separately to bypass coupling)
   useEffect(() => {
@@ -338,25 +608,16 @@ export default function App() {
 
     setLeads([coreLead, ...leads]);
 
-    // Push smart toast notification
-    setToastNotification({
-      id: assignedId,
-      title: 'Incoming CRM Sourcing Lead!',
-      message: hasItems 
-        ? `Client ${newLeadData.customerName} requested bulk pricing for ${newLeadData.items?.length} granite styles. Welcome sequence initialized.`
-        : `Client ${newLeadData.customerName} requested ${newLeadData.quantity} sqft of "${matchedProduct?.title}". Welcome sequence initialized.`
+    // Instantly save to Supabase database in general background thread
+    dbSaveLead(coreLead).then((success) => {
+      if (success) {
+        console.log(`Lead ${coreLead.id} synced directly to Supabase sandbox.`);
+      } else {
+        console.warn(`Lead ${coreLead.id} failed direct sync, saved locally for automatic sync.`);
+      }
     });
-  };
 
-  // Auto clean toaster
-  useEffect(() => {
-    if (toastNotification) {
-      const timer = setTimeout(() => {
-        setToastNotification(null);
-      }, 7000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastNotification]);
+  };
 
   return (
     <div id="portal-root" className="min-h-screen bg-stone-950 text-stone-200 selection:bg-amber-500 selection:text-stone-950 relative">
@@ -464,6 +725,8 @@ export default function App() {
               onUpdateLogoUrl={handleUpdateLogoUrl}
               logoText={logoText}
               onUpdateLogoText={handleUpdateLogoText}
+              leads={leads}
+              onUpdateLeads={setLeads}
             />
           )
         )}
@@ -488,41 +751,7 @@ export default function App() {
         )}
       </main>
 
-      {/* FLOATING TOASTS NOTIFIER */}
-      {toastNotification && (
-        <div id="toast-banner-wrapper" className="fixed bottom-6 right-6 z-50 animate-slide-up">
-          <div id="toast-banner" className="flex items-start gap-3 w-80 max-w-sm rounded-xl border border-amber-500/30 bg-stone-900 p-4 shadow-2xl shadow-stone-950/80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-550 flex-shrink-0">
-              <Bell className="h-4.5 w-4.5 text-amber-550 animate-bounce" />
-            </div>
-            <div className="flex-1 font-sans">
-              <h5 className="text-xs font-bold text-white uppercase font-mono tracking-widest">{toastNotification.title}</h5>
-              <p className="text-[11px] text-stone-400 mt-1 leading-normal">{toastNotification.message}</p>
-              
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => {
-                    setView('crm');
-                    setToastNotification(null);
-                  }}
-                  className="rounded bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold px-2.5 py-1 text-[9px] uppercase tracking-wider transition"
-                >
-                  Manage lead
-                </button>
-                <button
-                  onClick={() => setToastNotification(null)}
-                  className="rounded bg-stone-800 hover:bg-stone-750 text-stone-300 font-mono px-2 py-1 text-[9px] uppercase"
-                >
-                  Acknowledge
-                </button>
-              </div>
-            </div>
-            <button onClick={() => setToastNotification(null)} className="text-stone-500 hover:text-stone-300">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
+
 
     </div>
   );
