@@ -1,0 +1,6 @@
+{
+  "name": "FieryStone Traders Portal",
+  "description": "Premium showcase of hand-selected Indian granite slabs, natural quarry structures, and global export configurations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
