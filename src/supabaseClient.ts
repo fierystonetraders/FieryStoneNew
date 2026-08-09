@@ -29,15 +29,3 @@ export function getSupabase(): SupabaseClient | null {
     return null;
   }
 }
-
-/**
- * Standard Supabase client instance using conditional fallback to prevent crash.
- */
-export const supabase = (() => {
-  const url = import.meta.env.VITE_SUPABASE_URL || '';
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  if (!url || !key) {
-    return null as unknown as SupabaseClient;
-  }
-  return createClient(url, key);
-})();

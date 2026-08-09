@@ -99,6 +99,18 @@ DROP POLICY IF EXISTS "Allow public read settings" ON public.fstone_settings;
 DROP POLICY IF EXISTS "Allow open all settings" ON public.fstone_settings;
 CREATE POLICY "Allow public read settings" ON public.fstone_settings FOR SELECT USING (true);
 CREATE POLICY "Allow open all settings" ON public.fstone_settings FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. Product Images Storage Bucket
+-- Product photos are uploaded to Supabase Storage (not embedded as base64 in the
+-- database) so product records stay small and fast to load. Create the bucket:
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('product-images', 'product-images', true, 10485760, ARRAY['image/png','image/jpeg','image/webp','image/gif','image/avif'])
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow public read product images" ON storage.objects;
+DROP POLICY IF EXISTS "Allow open write product images" ON storage.objects;
+CREATE POLICY "Allow public read product images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
+CREATE POLICY "Allow open write product images" ON storage.objects FOR ALL USING (bucket_id = 'product-images') WITH CHECK (bucket_id = 'product-images');
 `;
 
 /**
@@ -139,22 +151,12 @@ export const checkSupabaseConnection = async (): Promise<{
   }
 
   try {
-    // Try listing any settings or products as validation
-    const { data, error } = await supabase.from('fstone_settings').select('key').limit(1);
-    
-    const productsExist = await testTableConnection('fstone_products');
-    const leadsExist = await testTableConnection('fstone_leads');
-    const settingsExist = await testTableConnection('fstone_settings');
-
-    if (error && error.code !== '42P01') {
-      return {
-        success: false,
-        productsTableExists: productsExist,
-        leadsTableExists: leadsExist,
-        settingsTableExists: settingsExist,
-        error: error.message
-      };
-    }
+    // Run all table probes concurrently instead of one-by-one to cut connection-check latency
+    const [productsExist, leadsExist, settingsExist] = await Promise.all([
+      testTableConnection('fstone_products'),
+      testTableConnection('fstone_leads'),
+      testTableConnection('fstone_settings')
+    ]);
 
     return {
       success: productsExist || leadsExist || settingsExist,

@@ -36,6 +36,9 @@ import {
   Share2
 } from 'lucide-react';
 import DatabaseTabContent from './DatabaseTabContent';
+import { getSupabase } from '../supabaseClient';
+
+const PRODUCT_IMAGES_BUCKET = 'product-images';
 
 interface CmsViewProps {
   products: Product[];
@@ -150,6 +153,8 @@ export default function CmsView({
   const [prodLocationsServing, setProdLocationsServing] = useState<string[]>([]);
   const [prodActive, setProdActive] = useState<boolean>(true);
   const [prodFeatured, setProdFeatured] = useState<boolean>(false);
+  const [isUploadingImages, setIsUploadingImages] = useState<boolean>(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   // Master Forms states
   const [masterFormName, setMasterFormName] = useState('');
@@ -162,19 +167,49 @@ export default function CmsView({
   const [newStageName, setNewStageName] = useState('');
   const [newWonStepName, setNewWonStepName] = useState('');
 
-  // Handle uploaded files base64 conversions
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload selected files to Supabase Storage and link the resulting public URLs.
+  // Embedding raw base64 image data directly in the product record instead of
+  // uploading it blows product payloads up to tens of megabytes, which is what
+  // caused slow loads and save failures — storage + a URL keeps records tiny.
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setProdImages((prev) => [...prev, reader.result as string]);
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    e.target.value = '';
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      setImageUploadError('Supabase is not configured, so images cannot be uploaded.');
+      return;
+    }
+
+    setImageUploadError(null);
+    setIsUploadingImages(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of fileList) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${productFormId || 'new-' + Date.now()}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage
+          .from(PRODUCT_IMAGES_BUCKET)
+          .upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false });
+
+        if (error) {
+          setImageUploadError(`Failed to upload "${file.name}": ${error.message}`);
+          continue;
         }
-      };
-      reader.readAsDataURL(file as any);
-    });
+
+        const { data: publicUrlData } = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
+        if (publicUrlData?.publicUrl) {
+          uploadedUrls.push(publicUrlData.publicUrl);
+        }
+      }
+      if (uploadedUrls.length > 0) {
+        setProdImages((prev) => [...prev, ...uploadedUrls]);
+      }
+    } finally {
+      setIsUploadingImages(false);
+    }
   };
 
   // QUICK PRODUCT CONTROLS
@@ -513,13 +548,19 @@ export default function CmsView({
                         multiple
                         accept="image/*"
                         onChange={handleImageFileUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        disabled={isUploadingImages}
+                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
                       />
-                      <p className="text-stone-300 font-bold">Drag & Drop or Click to Upload Slab Images</p>
+                      <p className="text-stone-300 font-bold">
+                        {isUploadingImages ? 'Uploading to cloud storage…' : 'Drag & Drop or Click to Upload Slab Images'}
+                      </p>
                       <p className="text-[10px] text-stone-500 mt-1 font-sans">
-                        Local images compile instantly to offline-safe Base64 strings.
+                        Images upload to Supabase Storage and link by URL (max 10MB each).
                       </p>
                     </div>
+                    {imageUploadError && (
+                      <p className="text-[10px] text-rose-400 font-mono">{imageUploadError}</p>
+                    )}
 
                     {/* Or URL input paste */}
                     <div className="flex gap-2 bg-stone-950 p-2 rounded-lg border border-stone-850">

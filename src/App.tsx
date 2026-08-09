@@ -265,6 +265,9 @@ export default function App() {
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
     return getSupabaseStatus().isConfigured;
   });
+  // Surfaces cloud-save failures instead of letting them fail silently in the background —
+  // a save can look "done" in the UI while the write to Supabase actually errored out.
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
 
   // Initial Load from Supabase (runs on mount)
   useEffect(() => {
@@ -273,96 +276,107 @@ export default function App() {
         const conn = await checkSupabaseConnection();
         if (conn.success) {
           console.log('Supabase connection verified. Loading live cloud states...');
-          
+
+          // Fire all reads concurrently instead of one-by-one — cuts initial load
+          // from ~12 sequential round trips down to a single parallel batch.
+          const tasks: Promise<void>[] = [];
+
           if (conn.productsTableExists) {
-            const dbProds = await dbFetchProducts();
-            if (dbProds) {
-              setProducts(dbProds);
-              prevProductsRef.current = dbProds;
-              setLocalItem('fstone_products', dbProds);
-            }
+            tasks.push(dbFetchProducts().then((dbProds) => {
+              if (dbProds) {
+                setProducts(dbProds);
+                prevProductsRef.current = dbProds;
+                setLocalItem('fstone_products', dbProds);
+              }
+            }));
           }
 
           if (conn.leadsTableExists) {
-            const dbLeads = await dbFetchLeads();
-            if (dbLeads) {
-              const sorted = [...dbLeads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-              setLeads(sorted);
-              prevLeadsRef.current = sorted;
-              setLocalItem('fstone_leads', sorted);
-            }
+            tasks.push(dbFetchLeads().then((dbLeads) => {
+              if (dbLeads) {
+                const sorted = [...dbLeads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                setLeads(sorted);
+                prevLeadsRef.current = sorted;
+                setLocalItem('fstone_leads', sorted);
+              }
+            }));
           }
 
           if (conn.settingsTableExists) {
-            const sz = await dbFetchSetting<SlabSize[] | null>('fstone_slab_sizes', null);
-            if (sz) {
-              setSlabSizes(sz);
-              setLocalItem('fstone_slab_sizes', sz);
-            }
-
-            const gt = await dbFetchSetting<GraniteType[] | null>('fstone_granite_types', null);
-            if (gt) {
-              setGraniteTypes(gt);
-              setLocalItem('fstone_granite_types', gt);
-            }
-
-            const th = await dbFetchSetting<Thickness[] | null>('fstone_thicknesses', null);
-            if (th) {
-              setThicknesses(th);
-              setLocalItem('fstone_thicknesses', th);
-            }
-
-            const ft = await dbFetchSetting<FinishType[] | null>('fstone_finish_types', null);
-            if (ft) {
-              setFinishTypes(ft);
-              setLocalItem('fstone_finish_types', ft);
-            }
-
-            const fp = await dbFetchSetting<FobPort[] | null>('fstone_fob_ports', null);
-            if (fp) {
-              setFobPorts(fp);
-              setLocalItem('fstone_fob_ports', fp);
-            }
-
-            const ls = await dbFetchSetting<LocationServing[] | null>('fstone_locations_serving', null);
-            if (ls) {
-              setLocationsServing(ls);
-              setLocalItem('fstone_locations_serving', ls);
-            }
-
-            const lstages = await dbFetchSetting<LeadStage[] | null>('fstone_lead_stages', null);
-            if (lstages) {
-              setLeadStages(lstages);
-              setLocalItem('fstone_lead_stages', lstages);
-            }
-
-            const wps = await dbFetchSetting<WonProcessStep[] | null>('fstone_won_process_steps', null);
-            if (wps) {
-              setWonProcessSteps(wps);
-              setLocalItem('fstone_won_process_steps', wps);
-            }
-
-            const fr = await dbFetchSetting<FollowUpSequenceRule[] | null>('fstone_followup_rules', null);
-            if (fr) {
-              setFollowUpRules(fr);
-              setLocalItem('fstone_followup_rules', fr);
-            }
-
-            const gsettings = await dbFetchSetting<any>('fstone_global_settings', null);
-            if (gsettings) {
-              setLocalItem('fstone_global_settings', gsettings);
-              if (gsettings.globalMinQuantity !== undefined) setGlobalMinQuantity(gsettings.globalMinQuantity);
-              if (gsettings.privacyPolicy !== undefined) setPrivacyPolicy(gsettings.privacyPolicy);
-              if (gsettings.termsConditions !== undefined) setTermsConditions(gsettings.termsConditions);
-              if (gsettings.exportDisclaimer !== undefined) setExportDisclaimer(gsettings.exportDisclaimer);
-              if (gsettings.instagramUrl !== undefined) setInstagramUrl(gsettings.instagramUrl);
-              if (gsettings.facebookUrl !== undefined) setFacebookUrl(gsettings.facebookUrl);
-              if (gsettings.youtubeUrl !== undefined) setYoutubeUrl(gsettings.youtubeUrl);
-              if (gsettings.linkedinUrl !== undefined) setLinkedinUrl(gsettings.linkedinUrl);
-              if (gsettings.logoUrl !== undefined) setLogoUrl(gsettings.logoUrl);
-              if (gsettings.logoText !== undefined) setLogoText(gsettings.logoText);
-            }
+            tasks.push(
+              dbFetchSetting<SlabSize[] | null>('fstone_slab_sizes', null).then((sz) => {
+                if (sz) {
+                  setSlabSizes(sz);
+                  setLocalItem('fstone_slab_sizes', sz);
+                }
+              }),
+              dbFetchSetting<GraniteType[] | null>('fstone_granite_types', null).then((gt) => {
+                if (gt) {
+                  setGraniteTypes(gt);
+                  setLocalItem('fstone_granite_types', gt);
+                }
+              }),
+              dbFetchSetting<Thickness[] | null>('fstone_thicknesses', null).then((th) => {
+                if (th) {
+                  setThicknesses(th);
+                  setLocalItem('fstone_thicknesses', th);
+                }
+              }),
+              dbFetchSetting<FinishType[] | null>('fstone_finish_types', null).then((ft) => {
+                if (ft) {
+                  setFinishTypes(ft);
+                  setLocalItem('fstone_finish_types', ft);
+                }
+              }),
+              dbFetchSetting<FobPort[] | null>('fstone_fob_ports', null).then((fp) => {
+                if (fp) {
+                  setFobPorts(fp);
+                  setLocalItem('fstone_fob_ports', fp);
+                }
+              }),
+              dbFetchSetting<LocationServing[] | null>('fstone_locations_serving', null).then((ls) => {
+                if (ls) {
+                  setLocationsServing(ls);
+                  setLocalItem('fstone_locations_serving', ls);
+                }
+              }),
+              dbFetchSetting<LeadStage[] | null>('fstone_lead_stages', null).then((lstages) => {
+                if (lstages) {
+                  setLeadStages(lstages);
+                  setLocalItem('fstone_lead_stages', lstages);
+                }
+              }),
+              dbFetchSetting<WonProcessStep[] | null>('fstone_won_process_steps', null).then((wps) => {
+                if (wps) {
+                  setWonProcessSteps(wps);
+                  setLocalItem('fstone_won_process_steps', wps);
+                }
+              }),
+              dbFetchSetting<FollowUpSequenceRule[] | null>('fstone_followup_rules', null).then((fr) => {
+                if (fr) {
+                  setFollowUpRules(fr);
+                  setLocalItem('fstone_followup_rules', fr);
+                }
+              }),
+              dbFetchSetting<any>('fstone_global_settings', null).then((gsettings) => {
+                if (gsettings) {
+                  setLocalItem('fstone_global_settings', gsettings);
+                  if (gsettings.globalMinQuantity !== undefined) setGlobalMinQuantity(gsettings.globalMinQuantity);
+                  if (gsettings.privacyPolicy !== undefined) setPrivacyPolicy(gsettings.privacyPolicy);
+                  if (gsettings.termsConditions !== undefined) setTermsConditions(gsettings.termsConditions);
+                  if (gsettings.exportDisclaimer !== undefined) setExportDisclaimer(gsettings.exportDisclaimer);
+                  if (gsettings.instagramUrl !== undefined) setInstagramUrl(gsettings.instagramUrl);
+                  if (gsettings.facebookUrl !== undefined) setFacebookUrl(gsettings.facebookUrl);
+                  if (gsettings.youtubeUrl !== undefined) setYoutubeUrl(gsettings.youtubeUrl);
+                  if (gsettings.linkedinUrl !== undefined) setLinkedinUrl(gsettings.linkedinUrl);
+                  if (gsettings.logoUrl !== undefined) setLogoUrl(gsettings.logoUrl);
+                  if (gsettings.logoText !== undefined) setLogoText(gsettings.logoText);
+                }
+              })
+            );
           }
+
+          await Promise.all(tasks);
         }
       } catch (err) {
         console.warn('Silent database exception handled:', err);
@@ -380,22 +394,21 @@ export default function App() {
     
     const pollDatabase = async () => {
       try {
-        const conn = await checkSupabaseConnection();
-        if (conn.success && conn.leadsTableExists) {
-          const dbLeads = await dbFetchLeads();
-          if (dbLeads) {
-            const sorted = dbLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            
-            setLeads(prevLeads => {
-              // Compare if the lists have different contents
-              const hasChanged = JSON.stringify(prevLeads) !== JSON.stringify(sorted);
-              if (hasChanged) {
-                prevLeadsRef.current = sorted;
-                return sorted;
-              }
-              return prevLeads;
-            });
-          }
+        // Fetch leads directly instead of re-running the 3-table connection
+        // check every tick — dbFetchLeads already resolves to null on failure.
+        const dbLeads = await dbFetchLeads();
+        if (dbLeads) {
+          const sorted = dbLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+          setLeads(prevLeads => {
+            // Compare if the lists have different contents
+            const hasChanged = JSON.stringify(prevLeads) !== JSON.stringify(sorted);
+            if (hasChanged) {
+              prevLeadsRef.current = sorted;
+              return sorted;
+            }
+            return prevLeads;
+          });
         }
       } catch (err) {
         console.warn('Silent database poll exception handled:', err);
@@ -417,20 +430,26 @@ export default function App() {
     setLocalItem('fstone_products', products);
     const syncProducts = async () => {
       const prev = prevProductsRef.current;
+      let hadFailure = false;
       // Check deleted
       for (const p of prev) {
         if (!products.some(c => c.id === p.id)) {
-          await dbDeleteProduct(p.id);
+          const ok = await dbDeleteProduct(p.id);
+          if (!ok) hadFailure = true;
         }
       }
       // Check updated or created
       for (const p of products) {
         const item = prev.find(c => c.id === p.id);
         if (!item || JSON.stringify(item) !== JSON.stringify(p)) {
-          await dbSaveProduct(p);
+          const ok = await dbSaveProduct(p);
+          if (!ok) hadFailure = true;
         }
       }
       prevProductsRef.current = products;
+      if (hadFailure) {
+        setCloudSyncError('One or more product changes failed to save to the cloud database. Your changes may only exist in this browser tab. Go to CMS → Database tab and click "Sync & Push offline Cache to Supabase" to retry.');
+      }
     };
     syncProducts();
   }, [products]);
@@ -637,7 +656,24 @@ export default function App() {
 
   return (
     <div id="portal-root" className="min-h-screen bg-stone-950 text-stone-200 selection:bg-amber-500 selection:text-stone-950 relative">
-      
+
+      {/* CLOUD SYNC FAILURE BANNER */}
+      {cloudSyncError && (
+        <div id="cloud-sync-error-banner" className="sticky top-0 z-[60] bg-rose-600 text-white">
+          <div className="mx-auto max-w-7xl px-4 py-2.5 flex items-center gap-3 text-xs sm:text-sm">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <p className="flex-1 font-medium leading-snug">{cloudSyncError}</p>
+            <button
+              onClick={() => setCloudSyncError(null)}
+              className="flex-shrink-0 p-1 rounded hover:bg-rose-700 transition"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* NAVBAR */}
       {!( (view === 'cms' || view === 'crm') && !isAdminLoggedIn ) && (
         <Navbar 

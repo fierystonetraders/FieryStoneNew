@@ -565,21 +565,6 @@ export default function WebsiteView({
                           </p>
 
                           <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-stone-500 border-t border-stone-800/80 pt-4">
-                              <div>
-                                <p className="text-stone-400 uppercase tracking-widest text-[9px]">Quarry Ports</p>
-                                <p className="truncate text-amber-500/90 text-[10px] font-bold mt-0.5">
-                                  {product.fobPortIds.map(id => fobPorts.find(p => p.id === id)?.name.split(',')[0]).filter(Boolean).join(', ') || 'Any Port'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-stone-400 uppercase tracking-widest text-[9px]">Sourcing served</p>
-                                <p className="truncate text-stone-300 text-[10px] mt-0.5">
-                                  Houston, Hamburg, GCC
-                                </p>
-                              </div>
-                            </div>
-
                             <button
                               id={`homepage-btn-configure-${product.id}`}
                               onClick={() => handleOpenProduct(product)}
