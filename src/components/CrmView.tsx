@@ -746,6 +746,8 @@ export default function CrmView({
                     </div>
 
                     {/* WOM (WORK ORDER MANAGEMENT) SOURCE & DISPATCH TRACKING SYSTEM */}
+                    {/* Hidden for general contact-form inquiries — no specific product/order to track sourcing/production against */}
+                    {products.some(p => p.id === selectedLead.productId) && (
                     <div className="p-4 rounded-xl border border-stone-800 bg-stone-950/40 text-xs font-mono space-y-3.5">
                       <div className="flex justify-between items-center border-b border-stone-850 pb-2">
                         <span className="text-stone-200 font-bold uppercase tracking-wider text-[10px] flex items-center gap-2">
@@ -804,6 +806,7 @@ export default function CrmView({
                         })}
                       </div>
                     </div>
+                    )}
 
                       {/* LEADS REMINDERS SYSTEM */}
                       <div className="pt-2">
