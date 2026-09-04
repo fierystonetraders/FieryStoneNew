@@ -116,17 +116,46 @@ export default function App() {
     };
   }, []);
 
-  // --- LOCAL CACHING ENGINE FOR INSTANT FLICKER-FREE LOADS (DISABLED AT USER REQUEST) ---
+  // --- LOCAL CACHING ENGINE FOR INSTANT LOADS ---
+  // Cache-first, stale-while-revalidate: read is synchronous (state initializes
+  // straight from cache, so the first render already shows real data instead of
+  // an empty/mock catalog), and the Supabase fetch effect below still runs on
+  // every load to refresh both state and cache in the background. A version tag
+  // guards against serving cache from a stale/incompatible shape, and a TTL
+  // caps how old data we're willing to show before preferring the empty default.
+  // Lead data is deliberately excluded — it's customer PII, only relevant to a
+  // logged-in admin, and has no business sitting in every anonymous visitor's
+  // browser storage.
+  const LOCAL_CACHE_VERSION = 1;
+  const LOCAL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
   const getLocalItem = <T,>(key: string, defaultValue: T): T => {
-    return defaultValue;
+    if (key === 'fstone_leads') return defaultValue;
+    try {
+      const raw = localStorage.getItem(`${key}_cache`);
+      if (!raw) return defaultValue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.v !== LOCAL_CACHE_VERSION || !parsed.t) return defaultValue;
+      if (Date.now() - parsed.t > LOCAL_CACHE_TTL) return defaultValue;
+      return parsed.d as T;
+    } catch {
+      return defaultValue;
+    }
   };
 
   const getLocalGlobalSetting = <T,>(settingKey: string, defaultValue: T): T => {
+    const bundle = getLocalItem<any>('fstone_global_settings', null);
+    if (bundle && bundle[settingKey] !== undefined) return bundle[settingKey] as T;
     return defaultValue;
   };
 
   const setLocalItem = (key: string, value: any) => {
-    // Zero local caching: do query / operations completely in-memory and in Supabase
+    if (key === 'fstone_leads') return;
+    try {
+      localStorage.setItem(`${key}_cache`, JSON.stringify({ v: LOCAL_CACHE_VERSION, t: Date.now(), d: value }));
+    } catch {
+      // localStorage full, disabled, or unavailable (private browsing) — no-op
+    }
   };
 
   const [globalMinQuantity, setGlobalMinQuantity] = useState<number>(() => getLocalGlobalSetting('globalMinQuantity', 500));
@@ -282,7 +311,11 @@ export default function App() {
   const prevLeadsRef = useRef<Lead[]>([]);
   const isInitialLoadExecuted = useRef<boolean>(false);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
-    return getSupabaseStatus().isConfigured;
+    if (!getSupabaseStatus().isConfigured) return false;
+    // Already have a usable product cache to paint immediately — no need to
+    // block the splash screen; the background fetch will refresh it shortly.
+    const cachedProducts = getLocalItem<Product[] | null>('fstone_products', null);
+    return !(cachedProducts && cachedProducts.length > 0);
   });
   // Surfaces cloud-save failures instead of letting them fail silently in the background —
   // a save can look "done" in the UI while the write to Supabase actually errored out.
