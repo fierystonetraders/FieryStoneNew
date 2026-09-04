@@ -9,6 +9,8 @@ import WebsiteView from './components/WebsiteView';
 import CmsView from './components/CmsView';
 import CrmView from './components/CrmView';
 import AdminLogin from './components/AdminLogin';
+import AccountBookLogin from './components/AccountBookLogin';
+import AccountBookView from './components/AccountBookView';
 // @ts-ignore
 import brandFavicon from './components/Fev.png';
 // @ts-ignore
@@ -55,14 +57,21 @@ import {
 import { AlertCircle, Bell, X } from 'lucide-react';
 
 export default function App() {
-  const [view, setView] = useState<'website' | 'cms' | 'crm'>('website');
+  const [view, setView] = useState<'website' | 'cms' | 'crm' | 'secure'>('website');
   const [activeWebTab, setActiveWebTab] = useState<'home' | 'products' | 'bulk-order' | 'contact'>('home');
   const [searchSelectedProductId, setSearchSelectedProductId] = useState<string | null>(null);
-  
+
   // Guard for internal admin apps (CMS & CRM)
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return localStorage.getItem('fstone_admin_session_active') === 'true';
   });
+
+  // Guard for the /secure Account Book — separate whitelist & session from the CMS/CRM admin login
+  const [isSecureLoggedIn, setIsSecureLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem('fstone_secure_session_active') === 'true';
+  });
+  const [secureUserEmail, setSecureUserEmail] = useState<string>(() => localStorage.getItem('fstone_secure_user_email') || '');
+  const [secureUserName, setSecureUserName] = useState<string>(() => localStorage.getItem('fstone_secure_user_name') || '');
 
   // Listen for specific admin URL routing triggers to enter secure panels
   useEffect(() => {
@@ -72,15 +81,25 @@ export default function App() {
       const hash = window.location.hash;
 
       if (
-        path === '/admin' || 
-        path === '/admin/' || 
+        path === '/admin' ||
+        path === '/admin/' ||
         path.endsWith('/admin') ||
         path.endsWith('/admin/') ||
-        search.includes('admin=true') || 
+        search.includes('admin=true') ||
         hash === '#admin' ||
         hash === '#/admin'
       ) {
         setView('crm');
+      } else if (
+        path === '/secure' ||
+        path === '/secure/' ||
+        path.endsWith('/secure') ||
+        path.endsWith('/secure/') ||
+        search.includes('secure=true') ||
+        hash === '#secure' ||
+        hash === '#/secure'
+      ) {
+        setView('secure');
       }
     };
 
@@ -386,6 +405,13 @@ export default function App() {
       }
     };
     initSupabaseData();
+
+    // Don't let a slow or degraded backend keep the storefront blank — reveal
+    // the site after a short grace period even if the initial Supabase fetch
+    // hasn't finished yet. Already-fetched data still hydrates in via setState
+    // whenever it lands; this only affects how long the splash screen blocks.
+    const revealTimer = window.setTimeout(() => setIsInitialLoading(false), 2000);
+    return () => window.clearTimeout(revealTimer);
   }, []);
 
   // Poll for new leads/updates from Supabase periodically to ensure Admin sees new submissions
@@ -674,9 +700,9 @@ export default function App() {
         </div>
       )}
 
-      {/* NAVBAR */}
-      {!( (view === 'cms' || view === 'crm') && !isAdminLoggedIn ) && (
-        <Navbar 
+      {/* NAVBAR — hidden entirely for the /secure Account Book, which has its own header */}
+      {view !== 'secure' && !( (view === 'cms' || view === 'crm') && !isAdminLoggedIn ) && (
+        <Navbar
           currentView={view} 
           setView={setView} 
           leadCount={leads.filter((l) => l.status === 'New').length} 
@@ -804,6 +830,27 @@ export default function App() {
               onUpdateFollowUpRules={setFollowUpRules}
               leadStages={leadStages}
               wonProcessSteps={wonProcessSteps}
+            />
+          )
+        )}
+
+        {view === 'secure' && (
+          !isSecureLoggedIn ? (
+            <AccountBookLogin onLoginSuccess={(email, name) => {
+              setSecureUserEmail(email);
+              setSecureUserName(name);
+              setIsSecureLoggedIn(true);
+            }} />
+          ) : (
+            <AccountBookView
+              currentUserEmail={secureUserEmail}
+              currentUserName={secureUserName}
+              onLogout={() => {
+                setIsSecureLoggedIn(false);
+                setSecureUserEmail('');
+                setSecureUserName('');
+                setView('website');
+              }}
             />
           )
         )}

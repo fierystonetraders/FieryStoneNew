@@ -1,5 +1,7 @@
 import { getSupabase } from './supabaseClient';
-import { Product, Lead } from './types';
+import { Product, Lead, Expense } from './types';
+
+export const EXPENSE_ATTACHMENTS_BUCKET = 'expense-attachments';
 
 // Let's define the status of Supabase configuration
 export interface SupabaseConfigStatus {
@@ -111,6 +113,38 @@ DROP POLICY IF EXISTS "Allow public read product images" ON storage.objects;
 DROP POLICY IF EXISTS "Allow open write product images" ON storage.objects;
 CREATE POLICY "Allow public read product images" ON storage.objects FOR SELECT USING (bucket_id = 'product-images');
 CREATE POLICY "Allow open write product images" ON storage.objects FOR ALL USING (bucket_id = 'product-images') WITH CHECK (bucket_id = 'product-images');
+
+-- 5. Account Book (/secure) — Expense Ledger Table
+-- Restricted to signed-in users only (the 3 whitelisted /secure OTP accounts),
+-- unlike the wide-open tables above, since this holds financial records.
+CREATE TABLE IF NOT EXISTS public.fstone_expenses (
+  id TEXT PRIMARY KEY,
+  date DATE NOT NULL,
+  purpose TEXT NOT NULL,
+  "paidTo" TEXT,
+  "paidBy" TEXT,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  attachments JSONB DEFAULT '[]',
+  "addedByEmail" TEXT,
+  "addedByName" TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.fstone_expenses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read expenses" ON public.fstone_expenses;
+DROP POLICY IF EXISTS "Allow authenticated write expenses" ON public.fstone_expenses;
+CREATE POLICY "Allow authenticated read expenses" ON public.fstone_expenses FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated write expenses" ON public.fstone_expenses FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- 6. Account Book Attachments Storage Bucket (private — served via signed URLs only)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('expense-attachments', 'expense-attachments', false, 10485760, ARRAY['image/png','image/jpeg','image/webp','image/gif'])
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow authenticated access expense attachments" ON storage.objects;
+CREATE POLICY "Allow authenticated access expense attachments" ON storage.objects FOR ALL
+  USING (bucket_id = 'expense-attachments' AND auth.role() = 'authenticated')
+  WITH CHECK (bucket_id = 'expense-attachments' AND auth.role() = 'authenticated');
 `;
 
 /**
@@ -378,5 +412,138 @@ export const dbSaveSetting = async <T>(key: string, value: T): Promise<boolean> 
   } catch (err) {
     console.error(`Failed to upsert settings for ${key}:`, err);
     return false;
+  }
+};
+
+/**
+ * ACCOUNT BOOK (/secure) — EXPENSE LEDGER APIs
+ */
+export const dbFetchExpenses = async (): Promise<Expense[] | null> => {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('fstone_expenses')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.warn('Error fetching expenses from Supabase:', error);
+      return null;
+    }
+    return data as Expense[];
+  } catch (err) {
+    console.warn('Failed to connect to Supabase expenses table:', err);
+    return null;
+  }
+};
+
+export const dbSaveExpense = async (expense: Expense): Promise<boolean> => {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('fstone_expenses')
+      .upsert({
+        id: expense.id,
+        date: expense.date,
+        purpose: expense.purpose,
+        paidTo: expense.paidTo,
+        paidBy: expense.paidBy,
+        amount: expense.amount,
+        attachments: expense.attachments || [],
+        addedByEmail: expense.addedByEmail,
+        addedByName: expense.addedByName
+      });
+
+    if (error) {
+      console.error('Error saving expense to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to upsert expense in Supabase:', err);
+    return false;
+  }
+};
+
+export const dbDeleteExpense = async (id: string): Promise<boolean> => {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('fstone_expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting expense from Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to delete expense from Supabase:', err);
+    return false;
+  }
+};
+
+/**
+ * Uploads a single attachment file into the private expense-attachments bucket
+ * under a per-expense folder, returning its storage path (not a public URL —
+ * the bucket is private, so viewing requires a short-lived signed URL).
+ */
+export const dbUploadExpenseAttachment = async (
+  expenseId: string,
+  file: File
+): Promise<{ path: string; name: string } | null> => {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${expenseId}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from(EXPENSE_ATTACHMENTS_BUCKET)
+      .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+
+    if (error) {
+      console.error('Error uploading expense attachment:', error);
+      return null;
+    }
+    return { path, name: file.name };
+  } catch (err) {
+    console.error('Failed to upload expense attachment:', err);
+    return null;
+  }
+};
+
+/**
+ * Resolves storage paths to temporary signed URLs for viewing attachments
+ * (the bucket is private, so paths alone aren't downloadable).
+ */
+export const dbGetExpenseAttachmentUrls = async (
+  paths: string[]
+): Promise<Record<string, string>> => {
+  const supabase = getSupabase();
+  if (!supabase || paths.length === 0) return {};
+  try {
+    const { data, error } = await supabase.storage
+      .from(EXPENSE_ATTACHMENTS_BUCKET)
+      .createSignedUrls(paths, 3600);
+
+    if (error || !data) {
+      console.warn('Error creating signed URLs for expense attachments:', error);
+      return {};
+    }
+
+    const map: Record<string, string> = {};
+    data.forEach((item) => {
+      if (item.path && item.signedUrl) {
+        map[item.path] = item.signedUrl;
+      }
+    });
+    return map;
+  } catch (err) {
+    console.warn('Failed to create signed URLs for expense attachments:', err);
+    return {};
   }
 };

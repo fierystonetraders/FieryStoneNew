@@ -8,8 +8,8 @@ import { Flame, ShieldCheck, Mail, Globe, Settings, ClipboardList, Sparkles, Sea
 import { Product } from '../types';
 
 interface NavbarProps {
-  currentView: 'website' | 'cms' | 'crm';
-  setView: (view: 'website' | 'cms' | 'crm') => void;
+  currentView: 'website' | 'cms' | 'crm' | 'secure';
+  setView: (view: 'website' | 'cms' | 'crm' | 'secure') => void;
   leadCount: number;
   activeWebTab: 'home' | 'products' | 'bulk-order' | 'contact';
   setActiveWebTab: (tab: 'home' | 'products' | 'bulk-order' | 'contact') => void;

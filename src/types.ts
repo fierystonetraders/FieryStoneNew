@@ -144,3 +144,21 @@ export interface FollowUpSequenceRule {
   bodyTemplate: string;
   active: boolean;
 }
+
+export interface ExpenseAttachment {
+  path: string; // Storage object path inside the private expense-attachments bucket
+  name: string; // Original file name, for display
+}
+
+export interface Expense {
+  id: string;
+  date: string; // yyyy-mm-dd
+  purpose: string;
+  paidTo: string;
+  paidBy: string;
+  amount: number;
+  attachments: ExpenseAttachment[];
+  addedByEmail: string;
+  addedByName: string;
+  createdAt: string;
+}
