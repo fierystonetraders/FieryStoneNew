@@ -1212,7 +1212,7 @@ export default function WebsiteView({
                       id="btn-bulk-submit"
                       className="w-full rounded bg-amber-500 hover:bg-amber-450 text-stone-950 font-bold py-3 uppercase tracking-wider text-xs transition cursor-pointer border-none text-center"
                     >
-                      Transmit Integrated Bulk quotation list
+                      Submit Bulk quotation list
                     </button>
                   </form>
                 )}
@@ -1667,7 +1667,7 @@ export default function WebsiteView({
                     <CheckCircle2 className="h-12 w-12 text-amber-500 mx-auto" />
                     <h5 className="text-stone-200 font-bold uppercase font-sans text-sm">Quotation Request Sent</h5>
                     <p className="text-stone-400 text-xs max-w-xs mx-auto">
-                      Your specifications have been successfully transmitted. Our logistics team will review your parameters and email a detailed custom quotation shortly.
+                      Your specifications have been successfully submitted. Our team will review your requirements and email a detailed quotation shortly.
                     </p>
                     <button
                       onClick={() => setSelectedProduct(null)}
