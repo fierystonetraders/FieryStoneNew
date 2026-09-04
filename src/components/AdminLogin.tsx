@@ -5,7 +5,8 @@
 
 import { useState } from 'react'; // Removed the unused global 'React' import to clear the redline
 import { Mail, ShieldCheck, ArrowRight, ShieldAlert, RefreshCw } from 'lucide-react';
-import { getSupabase } from '../supabaseClient'; 
+import { getSupabase } from '../supabaseClient';
+import { safeSetItem } from '../utils/safeStorage';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -72,7 +73,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
       if (error) throw error;
 
       if (data.session) {
-        localStorage.setItem('fstone_admin_session_active', 'true');
+        safeSetItem('fstone_admin_session_active', 'true');
         onLoginSuccess();
       } else {
         setErrors('Verification failed. Unable to establish a secure user session.');

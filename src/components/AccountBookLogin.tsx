@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Mail, ShieldCheck, ArrowRight, ShieldAlert, RefreshCw, BookOpen } from 'lucide-react';
 import { getSupabase } from '../supabaseClient';
+import { safeSetItem } from '../utils/safeStorage';
 
 // Only these accounts may sign in to the Account Book. Supabase Auth is configured
 // with shouldCreateUser: false, so an OTP will only actually be delivered if a
@@ -96,9 +97,9 @@ export default function AccountBookLogin({ onLoginSuccess }: AccountBookLoginPro
 
       if (data.session) {
         const name = SECURE_USERS[targetEmail] || targetEmail;
-        localStorage.setItem('fstone_secure_session_active', 'true');
-        localStorage.setItem('fstone_secure_user_email', targetEmail);
-        localStorage.setItem('fstone_secure_user_name', name);
+        safeSetItem('fstone_secure_session_active', 'true');
+        safeSetItem('fstone_secure_user_email', targetEmail);
+        safeSetItem('fstone_secure_user_name', name);
         onLoginSuccess(targetEmail, name);
       } else {
         setErrors('Verification failed. Unable to establish a secure user session.');

@@ -28,6 +28,7 @@ import {
   dbGetExpenseAttachmentUrls
 } from '../supabaseService';
 import { getSupabase } from '../supabaseClient';
+import { safeRemoveItem } from '../utils/safeStorage';
 import Lightbox from './Lightbox';
 
 interface AccountBookViewProps {
@@ -267,9 +268,9 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('fstone_secure_session_active');
-    localStorage.removeItem('fstone_secure_user_email');
-    localStorage.removeItem('fstone_secure_user_name');
+    safeRemoveItem('fstone_secure_session_active');
+    safeRemoveItem('fstone_secure_user_email');
+    safeRemoveItem('fstone_secure_user_name');
     const supabase = getSupabase();
     if (supabase) supabase.auth.signOut().catch(() => {});
     onLogout();

@@ -55,6 +55,7 @@ import {
   WonProcessStep
 } from './types';
 import { AlertCircle, Bell, X } from 'lucide-react';
+import { safeGetItem, safeSetItem, safeRemoveItem } from './utils/safeStorage';
 
 export default function App() {
   const [view, setView] = useState<'website' | 'cms' | 'crm' | 'secure'>('website');
@@ -63,15 +64,15 @@ export default function App() {
 
   // Guard for internal admin apps (CMS & CRM)
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('fstone_admin_session_active') === 'true';
+    return safeGetItem('fstone_admin_session_active') === 'true';
   });
 
   // Guard for the /secure Account Book — separate whitelist & session from the CMS/CRM admin login
   const [isSecureLoggedIn, setIsSecureLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem('fstone_secure_session_active') === 'true';
+    return safeGetItem('fstone_secure_session_active') === 'true';
   });
-  const [secureUserEmail, setSecureUserEmail] = useState<string>(() => localStorage.getItem('fstone_secure_user_email') || '');
-  const [secureUserName, setSecureUserName] = useState<string>(() => localStorage.getItem('fstone_secure_user_name') || '');
+  const [secureUserEmail, setSecureUserEmail] = useState<string>(() => safeGetItem('fstone_secure_user_email') || '');
+  const [secureUserName, setSecureUserName] = useState<string>(() => safeGetItem('fstone_secure_user_name') || '');
 
   // Listen for specific admin URL routing triggers to enter secure panels
   useEffect(() => {
@@ -756,7 +757,7 @@ export default function App() {
           logoText={logoText}
           isAdminLoggedIn={isAdminLoggedIn}
           onLogout={() => {
-            localStorage.removeItem('fstone_admin_session_active');
+            safeRemoveItem('fstone_admin_session_active');
             setIsAdminLoggedIn(false);
             setView('website');
             setActiveWebTab('home');
