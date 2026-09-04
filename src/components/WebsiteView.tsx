@@ -1073,26 +1073,26 @@ export default function WebsiteView({
                     return (
                       <div
                         key={item.id}
-                        className="bg-stone-950 p-4 rounded-lg border border-stone-850 flex items-center justify-between gap-4 font-sans text-xs"
+                        className="bg-stone-950 p-4 rounded-lg border border-stone-850 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 font-sans text-xs"
                       >
                         <div className="flex-1 min-w-0">
                           <h4 className="text-xs font-bold text-white uppercase truncate">{prodObj?.title || 'Premium Granite'}</h4>
-                          <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] text-stone-400 mt-1 pl-1 border-l border-amber-500/20 font-sans">
-                            <div>SIZE: <span className="text-stone-200 font-semibold">{sizeObj?.name || 'Custom'}</span></div>
-                            <div>THICK: <span className="text-stone-200 font-semibold">{thickObj?.name.split(' (')[0] || 'Custom'}</span></div>
-                            <div>FINISH: <span className="text-stone-200 font-semibold">{finishObj?.name || 'Custom'}</span></div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-[10px] text-stone-400 mt-1.5 pl-2 border-l border-amber-500/20 font-sans">
+                            <div className="truncate">SIZE: <span className="text-stone-200 font-semibold">{sizeObj?.name || 'Custom'}</span></div>
+                            <div className="truncate">THICK: <span className="text-stone-200 font-semibold">{thickObj?.name.split(' (')[0] || 'Custom'}</span></div>
+                            <div className="truncate">FINISH: <span className="text-stone-200 font-semibold">{finishObj?.name || 'Custom'}</span></div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 border-l border-stone-800 pl-4">
-                          <div className="text-right">
+                        <div className="flex items-center justify-between gap-3 sm:gap-4 pt-3 sm:pt-0 border-t sm:border-t-0 sm:border-l border-stone-800 sm:pl-4">
+                          <div className="text-left sm:text-right">
                             <p className="text-xs font-sans font-bold text-amber-500">{item.quantity.toLocaleString()} SQFT</p>
                             <p className="text-[9px] text-stone-600 mt-0.5">Est. weight: {((item.quantity * 0.0929 * 0.02 * 2.73)).toFixed(1)} tons</p>
                           </div>
 
                           <button
                             onClick={() => handleRemoveItemFromBulkOrder(item.id)}
-                            className="text-stone-600 hover:text-red-400 p-1.5 rounded transition bg-stone-900 border border-stone-800 cursor-pointer"
+                            className="flex-shrink-0 text-stone-600 hover:text-red-400 p-1.5 rounded transition bg-stone-900 border border-stone-800 cursor-pointer"
                             title="Remove style"
                           >
                             <X className="h-3.5 w-3.5" />

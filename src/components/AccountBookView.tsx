@@ -10,6 +10,7 @@ import {
   X,
   Paperclip,
   Trash2,
+  Edit2,
   LogOut,
   Search,
   List,
@@ -50,13 +51,18 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
   const [searchQuery, setSearchQuery] = useState('');
 
   const [showForm, setShowForm] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formId, setFormId] = useState('');
   const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [formPurpose, setFormPurpose] = useState('');
   const [formPaidTo, setFormPaidTo] = useState('');
   const [formPaidBy, setFormPaidBy] = useState('');
   const [formAmount, setFormAmount] = useState('');
+  const [formRemark, setFormRemark] = useState('');
   const [formAttachments, setFormAttachments] = useState<ExpenseAttachment[]>([]);
+  // Editing an entry shouldn't silently reassign who originally logged it —
+  // only new entries get attributed to the currently logged-in user.
+  const [formOriginalAddedBy, setFormOriginalAddedBy] = useState<{ email: string; name: string } | null>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -92,13 +98,31 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
     setFormPaidTo('');
     setFormPaidBy('');
     setFormAmount('');
+    setFormRemark('');
     setFormAttachments([]);
     setFormError(null);
+    setIsEditMode(false);
+    setFormOriginalAddedBy(null);
   };
 
   const openForm = () => {
     resetForm();
     setFormId(`exp-${Date.now()}`);
+    setShowForm(true);
+  };
+
+  const openEditForm = (expense: Expense) => {
+    setFormId(expense.id);
+    setFormDate(expense.date);
+    setFormPurpose(expense.purpose);
+    setFormPaidTo(expense.paidTo || '');
+    setFormPaidBy(expense.paidBy || '');
+    setFormAmount(String(expense.amount ?? ''));
+    setFormRemark(expense.remark || '');
+    setFormAttachments(expense.attachments || []);
+    setFormError(null);
+    setIsEditMode(true);
+    setFormOriginalAddedBy({ email: expense.addedByEmail, name: expense.addedByName });
     setShowForm(true);
   };
 
@@ -156,9 +180,10 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
       paidTo: formPaidTo.trim(),
       paidBy: formPaidBy.trim(),
       amount: amountNum,
+      remark: formRemark.trim() || undefined,
       attachments: formAttachments,
-      addedByEmail: currentUserEmail,
-      addedByName: currentUserName,
+      addedByEmail: formOriginalAddedBy?.email || currentUserEmail,
+      addedByName: formOriginalAddedBy?.name || currentUserName,
       createdAt: new Date().toISOString()
     };
 
@@ -206,6 +231,7 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
         e.purpose.toLowerCase().includes(q) ||
         (e.paidTo || '').toLowerCase().includes(q) ||
         (e.paidBy || '').toLowerCase().includes(q) ||
+        (e.remark || '').toLowerCase().includes(q) ||
         (e.addedByName || '').toLowerCase().includes(q)
     );
   }, [expenses, searchQuery]);
@@ -218,12 +244,12 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
       .filter((e) => (e.date || '').slice(0, 7) === thisMonthKey)
       .reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    const byAdder: Record<string, { count: number; total: number }> = {};
+    const byPaidByStats: Record<string, { count: number; total: number }> = {};
     expenses.forEach((e) => {
-      const key = e.addedByName || e.addedByEmail || 'Unknown';
-      if (!byAdder[key]) byAdder[key] = { count: 0, total: 0 };
-      byAdder[key].count += 1;
-      byAdder[key].total += e.amount || 0;
+      const key = e.paidBy?.trim() || 'Unspecified';
+      if (!byPaidByStats[key]) byPaidByStats[key] = { count: 0, total: 0 };
+      byPaidByStats[key].count += 1;
+      byPaidByStats[key].total += e.amount || 0;
     });
 
     const byPaidTo: Record<string, { count: number; total: number }> = {};
@@ -238,19 +264,20 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
       totalAll,
       totalThisMonth,
       count: expenses.length,
-      byAdder: Object.entries(byAdder).sort((a, b) => b[1].total - a[1].total),
+      byPaidBy: Object.entries(byPaidByStats).sort((a, b) => b[1].total - a[1].total),
       byPaidTo: Object.entries(byPaidTo).sort((a, b) => b[1].total - a[1].total).slice(0, 10)
     };
   }, [expenses]);
 
   const handleExportCsv = () => {
-    const header = ['Date', 'Purpose', 'Paid To', 'Paid By', 'Amount', 'Added By', 'Added By Email'];
+    const header = ['Date', 'Purpose', 'Paid To', 'Paid By', 'Amount', 'Remark', 'Added By', 'Added By Email'];
     const rows = expenses.map((e) => [
       e.date,
       e.purpose,
       e.paidTo,
       e.paidBy,
       e.amount.toFixed(2),
+      e.remark || '',
       e.addedByName,
       e.addedByEmail
     ]);
@@ -389,7 +416,12 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
                       {filteredExpenses.map((exp) => (
                         <tr key={exp.id} className="border-b border-stone-850/60 hover:bg-stone-850/30 transition">
                           <td className="px-4 py-3 text-stone-300 font-mono whitespace-nowrap">{exp.date}</td>
-                          <td className="px-4 py-3 text-stone-200 font-medium max-w-[220px] truncate" title={exp.purpose}>{exp.purpose}</td>
+                          <td className="px-4 py-3 text-stone-200 font-medium max-w-[220px]">
+                            <p className="truncate" title={exp.purpose}>{exp.purpose}</p>
+                            {exp.remark && (
+                              <p className="text-[10px] text-stone-500 italic truncate mt-0.5" title={exp.remark}>{exp.remark}</p>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-stone-400">{exp.paidTo || '—'}</td>
                           <td className="px-4 py-3 text-stone-400">{exp.paidBy || '—'}</td>
                           <td className="px-4 py-3 text-right text-amber-500 font-bold font-mono whitespace-nowrap">{currency(exp.amount)}</td>
@@ -424,7 +456,14 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
                             )}
                           </td>
                           <td className="px-4 py-3 text-stone-400 whitespace-nowrap">{exp.addedByName || exp.addedByEmail}</td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => openEditForm(exp)}
+                              className="text-stone-600 hover:text-amber-400 transition p-1"
+                              title="Edit entry"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => handleDelete(exp)}
                               className="text-stone-600 hover:text-rose-400 transition p-1"
@@ -461,12 +500,12 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
 
             <div className="grid lg:grid-cols-2 gap-5">
               <div className="bg-stone-900 border border-stone-850 rounded-xl p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-300 mb-3 border-b border-stone-850 pb-2.5">By Added By</h3>
-                {reports.byAdder.length === 0 ? (
+                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-300 mb-3 border-b border-stone-850 pb-2.5">By Paid By</h3>
+                {reports.byPaidBy.length === 0 ? (
                   <p className="text-xs text-stone-600 py-2">No data yet.</p>
                 ) : (
                   <div className="space-y-2">
-                    {reports.byAdder.map(([name, stat]) => (
+                    {reports.byPaidBy.map(([name, stat]) => (
                       <div key={name} className="flex items-center justify-between text-xs">
                         <span className="text-stone-300">{name} <span className="text-stone-600 font-mono">({stat.count})</span></span>
                         <span className="text-amber-500 font-bold font-mono">{currency(stat.total)}</span>
@@ -504,7 +543,7 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-stone-850 pb-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-white">Add Expense</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-white">{isEditMode ? 'Edit Expense' : 'Add Expense'}</h2>
               <button onClick={() => setShowForm(false)} className="text-stone-500 hover:text-white">
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -577,6 +616,17 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
               </div>
 
               <div>
+                <label className="block text-stone-400 uppercase text-[9px] font-bold mb-1.5">Remark <span className="normal-case text-stone-600">(optional)</span></label>
+                <textarea
+                  value={formRemark}
+                  onChange={(e) => setFormRemark(e.target.value)}
+                  placeholder="Any additional notes about this entry..."
+                  rows={2}
+                  className="w-full bg-stone-950 border border-stone-800 focus:border-amber-500 rounded px-3 py-2 text-stone-200 text-xs resize-none"
+                />
+              </div>
+
+              <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-stone-400 uppercase text-[9px] font-bold">Attachments (Screenshots)</label>
                   <span className="text-[10px] text-amber-500 font-mono">{formAttachments.length} Linked</span>
@@ -622,7 +672,15 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
               </div>
 
               <div className="rounded-lg bg-stone-950/60 border border-stone-850 p-3 text-[10px] text-stone-500">
-                Logged by <span className="text-stone-300 font-semibold">{currentUserName}</span> ({currentUserEmail})
+                {isEditMode ? (
+                  <>
+                    Originally logged by <span className="text-stone-300 font-semibold">{formOriginalAddedBy?.name}</span> — edited by <span className="text-stone-300 font-semibold">{currentUserName}</span>
+                  </>
+                ) : (
+                  <>
+                    Logged by <span className="text-stone-300 font-semibold">{currentUserName}</span> ({currentUserEmail})
+                  </>
+                )}
               </div>
 
               <button
@@ -634,6 +692,8 @@ export default function AccountBookView({ currentUserEmail, currentUserName, onL
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" /> Saving...
                   </>
+                ) : isEditMode ? (
+                  'Update Expense'
                 ) : (
                   'Save Expense'
                 )}

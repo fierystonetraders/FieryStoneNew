@@ -124,11 +124,14 @@ CREATE TABLE IF NOT EXISTS public.fstone_expenses (
   "paidTo" TEXT,
   "paidBy" TEXT,
   amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  remark TEXT,
   attachments JSONB DEFAULT '[]',
   "addedByEmail" TEXT,
   "addedByName" TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Safe to re-run: adds the column if this table already existed before "remark" was introduced.
+ALTER TABLE public.fstone_expenses ADD COLUMN IF NOT EXISTS remark TEXT;
 
 ALTER TABLE public.fstone_expenses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated read expenses" ON public.fstone_expenses;
@@ -451,6 +454,7 @@ export const dbSaveExpense = async (expense: Expense): Promise<boolean> => {
         paidTo: expense.paidTo,
         paidBy: expense.paidBy,
         amount: expense.amount,
+        remark: expense.remark || null,
         attachments: expense.attachments || [],
         addedByEmail: expense.addedByEmail,
         addedByName: expense.addedByName

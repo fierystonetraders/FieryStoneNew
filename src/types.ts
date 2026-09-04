@@ -157,6 +157,7 @@ export interface Expense {
   paidTo: string;
   paidBy: string;
   amount: number;
+  remark?: string; // Optional free-text note
   attachments: ExpenseAttachment[];
   addedByEmail: string;
   addedByName: string;
